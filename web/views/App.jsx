@@ -188,6 +188,9 @@ export function App() {
 
       <main>
         <DropZone hidden={active} onFile={(file) => handleFileSelect(file)} />
+        {!active ? (
+          <p class="drop-mode-note">{MODES[mode].note}</p>
+        ) : null}
 
         <div class="workspace" hidden={!active}>
           {active ? <Preview /> : null}
@@ -208,7 +211,7 @@ export function App() {
         </p>
       </main>
 
-      <Footer mode={mode} />
+      <Footer />
     </>
   );
 }
