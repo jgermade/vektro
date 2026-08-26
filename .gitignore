@@ -21,7 +21,7 @@
 # propio `web/pkg/.gitignore` con un `*` dentro y el fichero más hondo manda
 # sobre éste. Una vez seguido, las reglas de ignorados ya no le afectan.
 /web/pkg/*
-!/web/pkg/img2svg.d.ts
+!/web/pkg/vektro.d.ts
 
 # `web/static` es el publicDir de Vite: el logotipo lo deja ahí `npm run logo`,
 # copiándolo de la raíz, así que el original manda y la copia no se versiona.

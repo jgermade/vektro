@@ -149,12 +149,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          name="img2svg-v${{ needs.bump.outputs.version }}-${{ matrix.target }}"
+          name="vektro-v${{ needs.bump.outputs.version }}-${{ matrix.target }}"
           mkdir -p "dist/$name"
-          if [ -f "target/${{ matrix.target }}/release/img2svg.exe" ]; then
-            cp "target/${{ matrix.target }}/release/img2svg.exe" "dist/$name/"
+          if [ -f "target/${{ matrix.target }}/release/vektro.exe" ]; then
+            cp "target/${{ matrix.target }}/release/vektro.exe" "dist/$name/"
           else
-            cp "target/${{ matrix.target }}/release/img2svg" "dist/$name/"
+            cp "target/${{ matrix.target }}/release/vektro" "dist/$name/"
           fi
           cp README.md LICENSE "dist/$name/"
           cd dist
@@ -189,7 +189,7 @@ jobs:
           set -euo pipefail
           mkdir -p release
           find artifacts -type f \( -name '*.tar.gz' -o -name '*.zip' \) -exec mv {} release/ \;
-          tar czf "release/img2svg-v${{ needs.bump.outputs.version }}-web.tar.gz" -C artifacts/web .
+          tar czf "release/vektro-v${{ needs.bump.outputs.version }}-web.tar.gz" -C artifacts/web .
           ls -la release/
 
       - name: Crear la release

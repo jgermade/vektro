@@ -148,7 +148,7 @@ function cifras(svg) {
 
 const init = await import(new URL("vektro.js", pkg));
 await init.default({
-  module_or_path: await readFile(fileURLToPath(new URL("img2svg_bg.wasm", pkg))),
+  module_or_path: await readFile(fileURLToPath(new URL("vektro_bg.wasm", pkg))),
 });
 
 const sprite = raster(SPRITE, 3, PALETA);

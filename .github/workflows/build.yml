@@ -85,10 +85,10 @@ jobs:
       - name: Compilar a WebAssembly
         run: >
           wasm-pack build --release --target web
-          --out-dir web/pkg --out-name img2svg
+          --out-dir web/pkg --out-name vektro
           -- --no-default-features --features wasm,illustration
 
-      # `web/pkg/img2svg.d.ts` está versionado justo para esto: si lo que
+      # `web/pkg/vektro.d.ts` está versionado justo para esto: si lo que
       # acaba de compilar no coincide con él, la API que ve JavaScript ha
       # cambiado y hay que verlo. `--exit-code` imprime el diff antes de fallar,
       # así que el log dice qué se ha movido.
@@ -97,7 +97,7 @@ jobs:
       # `InitOutput` entero. Es ruido, pero del honesto —la superficie que se
       # publica cambia de verdad—: se recompila, se lee el diff y se commitea.
       - name: La API de JS no cambia sin querer
-        run: git diff --exit-code -- web/pkg/img2svg.d.ts
+        run: git diff --exit-code -- web/pkg/vektro.d.ts
 
       # Y lo que el `.d.ts` no puede decir: que las claves de opciones se leen.
       # Salen de un `Reflect::get` por cadena, así que una errata no falla, se

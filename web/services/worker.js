@@ -6,7 +6,7 @@
 // Los píxeles se envían una sola vez, al cargar la imagen, y se quedan aquí.
 // Cada cambio de ajuste manda sólo las opciones, que son cuatro números.
 
-import init, { convertRgba, convertIllustration } from "../pkg/img2svg.js";
+import init, { convertRgba, convertIllustration } from "../pkg/vektro.js";
 
 // Cada segmentación tiene su función y su resultado: no comparten casi ninguna
 // cifra, así que en vez de un tipo con la mitad de los campos vacíos hay dos, y
