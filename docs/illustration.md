@@ -2,7 +2,7 @@
 
 **Both axes ship.** Segmentation for images that sit on no grid is built, tested
 and reachable from all three surfaces — `Segmentation::Cluster` in the library,
-`img2svg illustration` on the CLI, the Ilustración tab on the page — and so are
+`vektro illustration` on the CLI, the Ilustración tab on the page — and so are
 all three fitters: `pixel`, `polygon` and `spline`. This page explains why it is
 a separate axis rather than a flag, and what each part is for.
 
@@ -18,7 +18,7 @@ The pixel art mode assumes the image has a regular grid: it detects the period,
 reduces the image to one logical pixel per cell, and traces axis-aligned
 outlines. Every one of those steps is wrong for an image that has no grid.
 
-So `img2svg` has two orthogonal axes, the same decomposition VTracer uses:
+So `vektro` has two orthogonal axes, the same decomposition VTracer uses:
 
 | Segmentation — image to regions | Fitting — contour to path |
 | --- | --- |
@@ -37,7 +37,7 @@ drawing.
 The whole segmentation half — colour groundwork, clustering, speck filtering,
 boundaries and background removal — all behind the `illustration` cargo feature,
 so a pixel-art-only build can leave it out, and all of it reachable through
-`Segmentation::Cluster`, `img2svg illustration`, the Ilustración tab and four
+`Segmentation::Cluster`, `vektro illustration`, the Ilustración tab and four
 snapshots of its own in `tests/illustration.rs`. (The published page ships one bundle with both: the gate
 costs 57 KB raw but only 17 KB brotli, which is not worth two builds.)
 
@@ -768,7 +768,7 @@ What is left, and in what order, lives in the newest file in
 [`SESSIONS/`](../SESSIONS/) — currently
 [`2026-08-11_22h08.illustration-and-the-working-scale.md`](../SESSIONS/2026-08-11_22h08.illustration-and-the-working-scale.md).
 The original decision is in
-[`2026-08-09-10h00.img2svg-two-axes.md`](../SESSIONS/2026-08-09-10h00.img2svg-two-axes.md);
+[`2026-08-09-10h00.vektro-two-axes.md`](../SESSIONS/2026-08-09-10h00.vektro-two-axes.md);
 the files between the two record how each stage was reasoned about, including
 where it corrected the plan, and are not kept up to date on purpose.
 

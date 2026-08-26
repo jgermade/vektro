@@ -5,7 +5,7 @@ export function Footer() {
         <p>
           <a
             class="repo"
-            href="https://github.com/jgermade/img2svg"
+            href="https://github.com/jgermade/vektro"
             target="_blank"
             rel="noopener noreferrer"
           >

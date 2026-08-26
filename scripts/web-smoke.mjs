@@ -5,7 +5,7 @@
 //   scripts/web-smoke.mjs
 //
 // Necesita `web/pkg/` compilado (ver docs/development.md). Carga
-// `web/pkg/img2svg.js` y le pasa los bytes del `.wasm` a mano: el arranque por
+// `web/pkg/vektro.js` y le pasa los bytes del `.wasm` a mano: el arranque por
 // omisión se baja una URL, y dándole los bytes no hace falta ni servidor ni
 // Chrome.
 //
@@ -146,7 +146,7 @@ function cifras(svg) {
   return total;
 }
 
-const init = await import(new URL("img2svg.js", pkg));
+const init = await import(new URL("vektro.js", pkg));
 await init.default({
   module_or_path: await readFile(fileURLToPath(new URL("img2svg_bg.wasm", pkg))),
 });

@@ -2,9 +2,9 @@
 #![cfg(feature = "illustration")]
 
 use image::RgbaImage;
-use img2svg::cluster::{self, ClusterOptions, Clustering, NONE};
-use img2svg::color::Rgba;
-use img2svg::speckle;
+use vektro::cluster::{self, ClusterOptions, Clustering, NONE};
+use vektro::color::Rgba;
+use vektro::speckle;
 
 const ROJO: Rgba = Rgba {
     r: 214,

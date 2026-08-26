@@ -25,7 +25,7 @@
 set -euo pipefail
 
 tag="${1:-}"
-repo="${CORPUS_REPO:-jgermade/img2svg}"
+repo="${CORPUS_REPO:-jgermade/vektro}"
 
 if [ -z "$tag" ]; then
   echo "uso: scripts/corpus-release.sh <etiqueta>" >&2

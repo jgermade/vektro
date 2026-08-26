@@ -21,7 +21,7 @@ mod common;
 use std::path::{Path, PathBuf};
 
 use common::{check, check_digest, fingerprint};
-use img2svg::{Config, Conversion, GridOptions, Grouping};
+use vektro::{Config, Conversion, GridOptions, Grouping};
 
 /// Las tres imágenes, con nombre corto estable: el de Gemini no dice nada y
 /// cambiaría la instantánea entera si alguien renombra el fichero.
@@ -75,7 +75,7 @@ fn snapshot_digest(name: &str, file: &str, config: &Config) -> Option<Conversion
 
 fn run(file: &str, config: &Config) -> Option<(Conversion, String)> {
     let data = load(file)?;
-    let out = img2svg::convert(&data, config).expect("la conversión no debe fallar");
+    let out = vektro::convert(&data, config).expect("la conversión no debe fallar");
     Some((out, format!("{file}  fnv {}", fingerprint(&data))))
 }
 

@@ -6,8 +6,8 @@
 //! que se puede perder sin que el dibujo cambie: un `simplify` olvidado da el
 //! mismo SVG con los paths llenos de vértices colineales.
 
-use img2svg::fit::simplify;
-use img2svg::trace::{self, Point};
+use vektro::fit::simplify;
+use vektro::trace::{self, Point};
 
 /// Construye una máscara a partir de un dibujo: `#` marca píxel presente.
 fn mask(rows: &[&str]) -> (Vec<bool>, usize, usize) {
@@ -25,7 +25,7 @@ fn traced(rows: &[&str]) -> Vec<Vec<Point>> {
 }
 
 /// `simplify` trabaja en reales desde que los contornos pueden salirse de la
-/// retícula ([`img2svg::subpixel`]); el trazado sigue dando enteros, así que aquí
+/// retícula ([`vektro::subpixel`]); el trazado sigue dando enteros, así que aquí
 /// se convierten para llamarla y se vuelve a enteros para poder afirmar sobre
 /// ellos. Los valores son exactos en `f64`, así que la ida y vuelta no pierde
 /// nada.

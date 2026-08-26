@@ -8,8 +8,8 @@
 
 #![cfg(feature = "illustration")]
 
-use img2svg::resample::{self, FEATURE};
-use img2svg::{ClusterOptions, Config, Detail};
+use vektro::resample::{self, FEATURE};
+use vektro::{ClusterOptions, Config, Detail};
 
 /// La unificación, escrita como aserción: **el lienzo de trabajo sale de la
 /// simplificación pedida y no del tamaño del fichero**.
@@ -133,7 +133,7 @@ fn el_documento_se_anuncia_al_tamano_de_la_imagen() {
         })
         .collect();
 
-    let out = img2svg::convert_rgba(w, h, &buf, &Config::cluster(ClusterOptions::default()))
+    let out = vektro::convert_rgba(w, h, &buf, &Config::cluster(ClusterOptions::default()))
         .expect("la conversión no debe fallar");
 
     let escala = match out.detail {
@@ -150,7 +150,7 @@ fn el_documento_se_anuncia_al_tamano_de_la_imagen() {
     );
 
     // Y sin reescalado, las dos cifras vuelven a ser la misma.
-    let out = img2svg::convert_rgba(
+    let out = vektro::convert_rgba(
         w,
         h,
         &buf,

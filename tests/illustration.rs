@@ -21,7 +21,7 @@
 mod common;
 
 use common::check;
-use img2svg::{ClusterOptions, Config, Conversion, Detail, Fit};
+use vektro::{ClusterOptions, Config, Conversion, Detail, Fit};
 
 /// Tamaño del dibujo, sin contar el margen de fondo.
 const W: usize = 64;
@@ -113,7 +113,7 @@ fn convert_con(margin: usize, options: ClusterOptions, fit: Fit) -> Conversion {
         fit,
         ..Config::cluster(options)
     };
-    img2svg::convert_rgba(w, h, &buf, &config).expect("la conversión no debe fallar")
+    vektro::convert_rgba(w, h, &buf, &config).expect("la conversión no debe fallar")
 }
 
 fn regions(out: &Conversion) -> usize {
@@ -153,11 +153,11 @@ fn ramps(out: &Conversion) -> usize {
 /// La rampa sale como un degradado **más una banda plana**, y eso es la costura
 /// entre dos ajustes que tiran en sentidos opuestos: `gradient_step` viene puesto
 /// por la tinta partida y ensancha las bandas, lo que agranda el salto entre
-/// ellas, y un salto grande es justo lo que [`img2svg::ramp`] rechaza. En una
+/// ellas, y un salto grande es justo lo que [`vektro::ramp`] rechaza. En una
 /// rampa real —un cielo con grano— no llega a pasar; en cinco bandas sobre 48
 /// píxeles, sí. Queda escrito aquí porque es el precio, y se ve en la instantánea.
 ///
-/// Esa última pareja es el criterio de [`img2svg::speckle`] puesto a prueba con
+/// Esa última pareja es el criterio de [`vektro::speckle`] puesto a prueba con
 /// las dos cosas que miden lo mismo. La línea es de un píxel de ancho, así que el
 /// grosor la propone; su magenta no se parece a ninguna mezcla de las bandas que
 /// tiene a los dos lados, así que se queda. Los cuatro puntos sueltos miden un
@@ -418,7 +418,7 @@ fn las_curvas_se_quedan_donde_estan() {
         fit: Fit::spline(),
         ..Config::cluster(en_la_reticula())
     };
-    let out = img2svg::convert_rgba(w as u32, h as u32, &buf, &config)
+    let out = vektro::convert_rgba(w as u32, h as u32, &buf, &config)
         .expect("la conversión no debe fallar");
 
     // Contando comandos dentro de los `d`, no letras sueltas del documento: la
@@ -516,7 +516,7 @@ fn un_foco_es_un_degradado_radial() {
             }
         }
         let out =
-            img2svg::convert_rgba(w as u32, h as u32, &buf, &Config::cluster(en_la_reticula()))
+            vektro::convert_rgba(w as u32, h as u32, &buf, &Config::cluster(en_la_reticula()))
                 .expect("la conversión no debe fallar");
 
         assert!(out.colors > 3, "la caída tiene que dar varias bandas");
@@ -567,8 +567,8 @@ fn atributo(svg: &str, name: &str) -> f64 {
 fn a_dos_colores() -> ClusterOptions {
     ClusterOptions {
         palette: vec![
-            img2svg::color::Rgba::new(222, 196, 168, 255),
-            img2svg::color::Rgba::new(186, 158, 128, 255),
+            vektro::color::Rgba::new(222, 196, 168, 255),
+            vektro::color::Rgba::new(186, 158, 128, 255),
         ],
         filter_speckle: 0,
         min_thickness: 0.0,
@@ -592,7 +592,7 @@ fn dos_bandas(difusa: usize) -> (u32, u32, Vec<u8>) {
                 let t = (y - 19) as f64 / (difusa + 1) as f64;
                 let mezcla =
                     |a: u8, b: u8| (f64::from(a) + t * (f64::from(b) - f64::from(a))).round() as u8;
-                img2svg::color::Rgba::new(
+                vektro::color::Rgba::new(
                     mezcla(claro.r, oscuro.r),
                     mezcla(claro.g, oscuro.g),
                     mezcla(claro.b, oscuro.b),
@@ -619,7 +619,7 @@ fn dos_bandas(difusa: usize) -> (u32, u32, Vec<u8>) {
 #[test]
 fn una_costura_blanda_junta_dos_bandas() {
     let (w, h, buf) = dos_bandas(10);
-    let out = img2svg::convert_rgba(w, h, &buf, &Config::cluster(a_dos_colores()))
+    let out = vektro::convert_rgba(w, h, &buf, &Config::cluster(a_dos_colores()))
         .expect("la conversión no debe fallar");
 
     assert_eq!(out.colors, 2, "la paleta impuesta, tal cual");
@@ -643,7 +643,7 @@ fn una_costura_blanda_junta_dos_bandas() {
 #[test]
 fn una_costura_dura_no_junta_dos_bandas() {
     let (w, h, buf) = dos_bandas(0);
-    let out = img2svg::convert_rgba(w, h, &buf, &Config::cluster(a_dos_colores()))
+    let out = vektro::convert_rgba(w, h, &buf, &Config::cluster(a_dos_colores()))
         .expect("la conversión no debe fallar");
 
     assert_eq!(out.colors, 2, "el mismo par de colores");
@@ -669,7 +669,7 @@ fn una_bandera_no_es_un_degradado() {
             buf.extend_from_slice(&franjas[y * franjas.len() / h]);
         }
     }
-    let out = img2svg::convert_rgba(w as u32, h as u32, &buf, &Config::cluster(en_la_reticula()))
+    let out = vektro::convert_rgba(w as u32, h as u32, &buf, &Config::cluster(en_la_reticula()))
         .expect("la conversión no debe fallar");
 
     assert_eq!(ramps(&out), 0, "cuatro franjas planas no son una rampa");

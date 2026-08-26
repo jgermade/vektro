@@ -18,7 +18,7 @@ between a local build and a CI build would be enough for them to stop matching.
 ```sh
 cargo test                 # debug: overflow checks on
 cargo test --release       # what ships
-cargo build --release      # CLI at target/release/img2svg
+cargo build --release      # CLI at target/release/vektro
 cargo fmt --check
 cargo clippy --all-targets
 ```
@@ -30,7 +30,7 @@ The page is a Vite + Preact project rooted at [`web/`](../web). The wasm is a
 
 ```sh
 wasm-pack build --release --target web \
-  --out-dir web/pkg --out-name img2svg \
+  --out-dir web/pkg --out-name vektro \
   -- --no-default-features --features wasm,illustration
 
 cd web
@@ -45,14 +45,14 @@ The wasm must be served over HTTP — opening the HTML from the filesystem will 
 work, because the page loads a module worker. The dev server takes care of that;
 there is no longer any reason to reach for `python3 -m http.server`.
 
-`npm run build` runs `npm run logo` first, which copies `img2svg.svg` from the
+`npm run build` runs `npm run logo` first, which copies `vektro.svg` from the
 repository root into `web/static/`. That directory is Vite's `publicDir`: what is
 in it is served as-is and referenced by URL. Everything else is imported, and
 therefore hashed and fingerprinted by the bundler — including `web/pkg/`, which
 is why the wasm package is **not** in `static/`.
 
 `base` is `"./"` in [`web/vite.config.js`](../web/vite.config.js). Pages serves
-the site from `/img2svg/`, not from a domain root, and the default `/` would
+the site from `/vektro/`, not from a domain root, and the default `/` would
 produce a build that works locally and 404s every asset in production.
 
 ### The layout
@@ -82,7 +82,7 @@ curve fitters change the shape of that.
 
 ### The committed `.d.ts`
 
-`web/pkg/` is generated and ignored **except** `web/pkg/img2svg.d.ts`, which is
+`web/pkg/` is generated and ignored **except** `web/pkg/vektro.d.ts`, which is
 committed. CI rebuilds the wasm and then runs `git diff --exit-code` against it,
 so the API JavaScript sees cannot change without the change appearing in a diff.
 
@@ -106,7 +106,7 @@ Two traps, both already paid for:
 node scripts/web-smoke.mjs
 ```
 
-Loads `web/pkg/img2svg.js`, hands `init()` the `.wasm` bytes directly — so it
+Loads `web/pkg/vektro.js`, hands `init()` the `.wasm` bytes directly — so it
 needs no server and no browser — and calls `convertRgba` / `convertIllustration` on a
 synthetic buffer built in the script, the way `tests/golden.rs` does. The wasm
 has no image codecs in it (the browser decodes), so a PNG would be no use here.

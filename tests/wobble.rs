@@ -8,7 +8,7 @@
 
 #![cfg(feature = "illustration")]
 
-use img2svg::{ClusterOptions, Config, Conversion, Fit};
+use vektro::{ClusterOptions, Config, Conversion, Fit};
 
 /// Opciones de partida: sobre la retícula del dibujo y sin filtrar motas, que es
 /// lo que deja ver el contorno y nada más.
@@ -28,7 +28,7 @@ fn convert(w: u32, h: u32, buf: &[u8], relax: f64, fit: Fit) -> Conversion {
         fit,
         ..Config::cluster(opciones(relax))
     };
-    img2svg::convert_rgba(w, h, buf, &config).expect("la conversión no debe fallar")
+    vektro::convert_rgba(w, h, buf, &config).expect("la conversión no debe fallar")
 }
 
 /// Dos colores separados por una frontera casi recta a la que se le ha metido un

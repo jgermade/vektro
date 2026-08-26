@@ -1,4 +1,4 @@
-# img2svg
+# Vektro
 
 <img src="img2svg.svg" alt="" width="88" align="right">
 
@@ -12,14 +12,14 @@ Three ways to use it: **web**, **CLI** and **library**.
 
 ## Web
 
-<https://jgermade.github.io/img2svg/> — the whole conversion runs in the browser
+<https://jgermade.github.io/vektro/> — the whole conversion runs in the browser
 (Rust compiled to WebAssembly); the image is never uploaded anywhere.
 
 ## CLI
 
 ```sh
 cargo build --release
-./target/release/img2svg pixelart sprite.png
+./target/release/vektro pixelart sprite.png
 ```
 
 Writes `sprite.svg` and reports what it did (the program speaks Spanish):
@@ -36,7 +36,7 @@ groups the colours into a palette, traces the connected regions of each entry an
 files the staircase off their contours (`photo` is a legacy alias of it):
 
 ```sh
-./target/release/img2svg illustration drawing.png --remove-background
+./target/release/vektro illustration drawing.png --remove-background
 ```
 
 ```
@@ -70,8 +70,8 @@ literally, while off the grid it is only the pixel lattice showing through, so
 `illustration` straightens it.
 
 ```sh
-./target/release/img2svg illustration label.png --fit polygon
-./target/release/img2svg illustration label.png --fit spline
+./target/release/vektro illustration label.png --fit polygon
+./target/release/vektro illustration label.png --fit spline
 ```
 
 Pick `spline` for an outline that stays smooth however far you zoom, not for a
@@ -97,7 +97,7 @@ in the report and pin it by hand with `--scale`. Full option list in
 
 ```rust
 let png = std::fs::read("sprite.png")?;
-let out = img2svg::convert(&png, &img2svg::Config::default())?;
+let out = vektro::convert(&png, &vektro::Config::default())?;
 println!("{} colours in {} paths", out.colors, out.paths);
 std::fs::write("sprite.svg", out.svg)?;
 ```

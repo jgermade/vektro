@@ -9,8 +9,8 @@
 
 #![cfg(feature = "illustration")]
 
-use img2svg::color::Rgba;
-use img2svg::ClusterOptions;
+use vektro::color::Rgba;
+use vektro::ClusterOptions;
 
 const CLARO: Rgba = Rgba {
     r: 255,
@@ -67,7 +67,7 @@ fn mezcla(t: f64) -> Rgba {
 #[test]
 fn un_borde_duro_mide_cero() {
     let img = imagen(20, 20, |y| if y < 10 { CLARO } else { OSCURO });
-    let medidas = img2svg::softness_of(&img, &opciones());
+    let medidas = vektro::softness_of(&img, &opciones());
 
     assert_eq!(medidas.len(), 1, "una sola frontera interior");
     assert_eq!(medidas[0].width, 0.0, "un canto duro no tiene mezcla");
@@ -92,7 +92,7 @@ fn una_transicion_mide_su_anchura() {
         y if y < 10 + rampa => mezcla((y - 9) as f64 / (rampa + 1) as f64),
         _ => OSCURO,
     });
-    let medidas = img2svg::softness_of(&img, &opciones());
+    let medidas = vektro::softness_of(&img, &opciones());
 
     assert_eq!(medidas.len(), 1, "sigue siendo una frontera");
     let ancho = medidas[0].width;
@@ -119,7 +119,7 @@ fn la_misma_pareja_puede_ser_dura_y_blanda() {
         y if y < 36 => mezcla((y - 29) as f64 / 7.0),
         _ => OSCURO,
     });
-    let medidas = img2svg::softness_of(&img, &opciones());
+    let medidas = vektro::softness_of(&img, &opciones());
 
     // Tres cambios de color: dos cantos secos y la rampa.
     assert_eq!(

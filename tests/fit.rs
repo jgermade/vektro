@@ -10,7 +10,7 @@
 #[cfg(feature = "illustration")]
 use std::collections::{HashMap, HashSet};
 
-use img2svg::{Config, Conversion, Fit, GridOptions};
+use vektro::{Config, Conversion, Fit, GridOptions};
 
 type Point = (f64, f64);
 
@@ -120,7 +120,7 @@ fn convert(rows: &[&str], fit: Fit) -> Conversion {
             ..GridOptions::default()
         })
     };
-    img2svg::convert_rgba(w, h, &buf, &config).expect("la conversión no debe fallar")
+    vektro::convert_rgba(w, h, &buf, &config).expect("la conversión no debe fallar")
 }
 
 /* ------------------------------------------------------------- el documento --- */
@@ -543,7 +543,7 @@ fn un_rectangulo_no_se_curva() {
 /// Un círculo sale liso, **y la costura no se nota**.
 ///
 /// Un bucle que no pasa por ningún nodo se parte por donde caiga
-/// ([`img2svg::boundary`]), y eso cae en medio del contorno más liso que suele
+/// ([`vektro::boundary`]), y eso cae en medio del contorno más liso que suele
 /// haber en la imagen. Si ese corte se tratara como esquina, todas las manchas
 /// sueltas de todas las fotos saldrían con un pico en un sitio distinto cada
 /// vez. Aquí se comprueba justo eso: en cada junta entre dos curvas, la
@@ -567,7 +567,7 @@ fn un_circulo_sale_liso() {
             ..GridOptions::default()
         })
     };
-    let out = img2svg::convert_rgba(w, h, &buf, &config).expect("la conversión no debe fallar");
+    let out = vektro::convert_rgba(w, h, &buf, &config).expect("la conversión no debe fallar");
     let paths = subpaths(&out.svg);
 
     assert_eq!(paths.len(), 1, "el círculo es un solo subtrazado");
@@ -646,7 +646,7 @@ fn convert_cluster(rows: &[&str], fit: Fit) -> Conversion {
 
 #[cfg(feature = "illustration")]
 fn convert_cluster_buf(w: u32, h: u32, buf: &[u8], fit: Fit) -> Conversion {
-    use img2svg::ClusterOptions;
+    use vektro::ClusterOptions;
 
     let config = Config {
         fit,
@@ -662,5 +662,5 @@ fn convert_cluster_buf(w: u32, h: u32, buf: &[u8], fit: Fit) -> Conversion {
             ..ClusterOptions::default()
         })
     };
-    img2svg::convert_rgba(w, h, buf, &config).expect("la conversión no debe fallar")
+    vektro::convert_rgba(w, h, buf, &config).expect("la conversión no debe fallar")
 }

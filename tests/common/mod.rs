@@ -18,7 +18,7 @@
 
 use std::path::{Path, PathBuf};
 
-use img2svg::{Conversion, Detail};
+use vektro::{Conversion, Detail};
 
 pub fn golden_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden")

@@ -1,6 +1,6 @@
 //! Cuantización de canales y distancia perceptual en Oklab.
 
-use img2svg::color::Rgba;
+use vektro::color::Rgba;
 
 fn rgb(r: u8, g: u8, b: u8) -> Rgba {
     Rgba::new(r, g, b, 255)
@@ -88,7 +88,7 @@ fn la_cuantizacion_tambien_recorta_el_alfa() {
 #[cfg(feature = "illustration")]
 mod oklab {
     use super::rgb;
-    use img2svg::color::{Oklab, Rgba};
+    use vektro::color::{Oklab, Rgba};
 
     /// Los valores publicados por Ottosson para sRGB. Si la conversión se
     /// tuerce, aquí se ve, y no en una foto tres fases más adelante.

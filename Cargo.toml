@@ -1,19 +1,19 @@
 [package]
-name = "img2svg"
+name = "vektro"
 version = "0.1.9"
 edition = "2021"
 description = "Convierte imágenes en SVG. Modo pixel art: detecta la rejilla y une los píxeles del mismo color en paths"
-repository = "https://github.com/jgermade/img2svg"
+repository = "https://github.com/jgermade/vektro"
 license = "MIT"
 autoexamples = false
 
 [lib]
-name = "img2svg"
+name = "vektro"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [[bin]]
-name = "img2svg"
+name = "vektro"
 path = "src/cli.rs"
 required-features = ["cli"]
 

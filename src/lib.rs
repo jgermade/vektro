@@ -15,7 +15,7 @@
 //!     255, 0, 0, 255,   0, 0, 255, 255,
 //!     0, 0, 0, 0,       0, 0, 0, 0,
 //! ];
-//! let out = img2svg::convert_rgba(2, 2, &rgba, &img2svg::Config::default()).unwrap();
+//! let out = vektro::convert_rgba(2, 2, &rgba, &vektro::Config::default()).unwrap();
 //! assert_eq!(out.canvas, (2, 2));
 //! assert_eq!(out.colors, 2);
 //! ```

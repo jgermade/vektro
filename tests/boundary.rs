@@ -4,12 +4,12 @@
 use std::collections::HashSet;
 
 use image::RgbaImage;
-use img2svg::boundary;
-use img2svg::cluster::{self, ClusterOptions};
-use img2svg::color::Rgba;
-use img2svg::fit::Fit;
-use img2svg::region::Regions;
-use img2svg::svg;
+use vektro::boundary;
+use vektro::cluster::{self, ClusterOptions};
+use vektro::color::Rgba;
+use vektro::fit::Fit;
+use vektro::region::Regions;
+use vektro::svg;
 
 const ROJO: Rgba = Rgba {
     r: 214,
@@ -144,7 +144,7 @@ fn la_frontera_entre_dos_regiones_es_un_solo_tramo() {
     let r = contornos(&["RRGG", "RRGG"], &[('R', ROJO), ('G', VERDE)]);
     assert_eq!(r.regions.len(), 2);
 
-    let compartidos: Vec<&img2svg::region::HalfEdge> =
+    let compartidos: Vec<&vektro::region::HalfEdge> =
         r.edges.iter().filter(|e| e.right.is_some()).collect();
     assert_eq!(compartidos.len(), 1, "{:?}", r.edges);
     // Y es vertical, de arriba abajo de la imagen, con los dos píxeles a los

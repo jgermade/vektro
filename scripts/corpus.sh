@@ -19,7 +19,7 @@
 set -euo pipefail
 
 tag="corpus-v1"
-repo="${CORPUS_REPO:-jgermade/img2svg}"
+repo="${CORPUS_REPO:-jgermade/vektro}"
 url="${CORPUS_URL:-https://github.com/$repo/releases/download/$tag/corpus.tar.gz}"
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

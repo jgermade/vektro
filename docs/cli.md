@@ -1,7 +1,7 @@
 # CLI reference
 
 ```
-img2svg <COMMAND>
+vektro <COMMAND>
 ```
 
 The subcommand chooses **how the image is read**, because that decision changes
@@ -14,7 +14,7 @@ tolerance of `12` in pixel art is an RGB distance between two tones of a discret
 palette, and one of `0.045` in illustration is an Oklab distance inside a continuous
 gradient.
 
-## `img2svg pixelart <INPUT>`
+## `vektro pixelart <INPUT>`
 
 Detects the grid, reduces the image to one logical pixel per cell, merges
 near-identical colours and traces the outline of every region.
@@ -136,12 +136,12 @@ it should not have. `--keep-checkerboard` turns it off.
 near-identical tones collapse together. `0` keeps every distinct colour, which on
 a noisy JPEG means thousands.
 
-## `img2svg illustration <INPUT>`
+## `vektro illustration <INPUT>`
 
 Groups the colours into a palette, labels the connected regions of each entry,
 merges away the ones that carry no drawing, and traces every boundary once.
 
-`img2svg photo` is an alias: it is what this subcommand was called until
+`vektro photo` is an alias: it is what this subcommand was called until
 2026-08-11, when the mode was renamed after what it is for.
 
 Takes the same [shared options](#shared-options). Its own:

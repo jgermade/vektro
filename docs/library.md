@@ -1,18 +1,18 @@
-# Using img2svg as a crate
+# Using vektro as a crate
 
 ## Entry points
 
 ```rust
 // From an encoded image. Needs the `formats` feature, on by default.
 let png = std::fs::read("sprite.png")?;
-let out = img2svg::convert(&png, &img2svg::Config::default())?;
+let out = vektro::convert(&png, &vektro::Config::default())?;
 
 // From already-decoded pixels. Always available, and the path the web build
 // uses: decoding is work the browser already knows how to do.
-let out = img2svg::convert_rgba(width, height, &rgba, &config)?;
+let out = vektro::convert_rgba(width, height, &rgba, &config)?;
 
 // From an `image::RgbaImage` you already have.
-let out = img2svg::convert_image(&img, &config)?;
+let out = vektro::convert_image(&img, &config)?;
 ```
 
 All three return the same `Conversion`.
@@ -35,7 +35,7 @@ pub struct Config {
 path. To vary it:
 
 ```rust
-use img2svg::{ClusterOptions, Config, GridOptions, Grouping};
+use vektro::{ClusterOptions, Config, GridOptions, Grouping};
 
 let config = Config::grid(GridOptions {
     tolerance: 24.0,
@@ -204,8 +204,8 @@ around 150 KB: the browser decodes, so the image codecs are half a megabyte of
 dead weight there.
 
 ```sh
-cargo add img2svg --no-default-features              # library only
-cargo add img2svg --no-default-features -F formats   # plus decoders
+cargo add vektro --no-default-features              # library only
+cargo add vektro --no-default-features -F formats   # plus decoders
 ```
 
 ## The JavaScript API
@@ -214,7 +214,7 @@ With `--features wasm`, `wasm-pack` produces one function per segmentation, each
 taking a plain object of camelCase keys, all optional:
 
 ```js
-import init, { convertRgba, convertIllustration } from "./pkg/img2svg.js";
+import init, { convertRgba, convertIllustration } from "./pkg/vektro.js";
 await init();
 
 const out = convertRgba(width, height, rgba, {

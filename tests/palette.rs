@@ -4,8 +4,8 @@
 use std::collections::BTreeSet;
 
 use image::RgbaImage;
-use img2svg::cluster::{self, ClusterOptions, Clustering, NONE};
-use img2svg::color::{Oklab, Rgba};
+use vektro::cluster::{self, ClusterOptions, Clustering, NONE};
+use vektro::color::{Oklab, Rgba};
 
 const ROJO: Rgba = Rgba {
     r: 214,

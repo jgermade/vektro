@@ -16,11 +16,11 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use clap::{Args, Parser, Subcommand, ValueEnum};
-use img2svg::{ClusterOptions, Config, Conversion, Fit, GridOptions, Grouping};
+use vektro::{ClusterOptions, Config, Conversion, Fit, GridOptions, Grouping};
 
 /// Convierte imágenes en SVG.
 #[derive(Parser)]
-#[command(name = "img2svg", version, about, long_about = None)]
+#[command(name = "vektro", version, about, long_about = None)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -201,7 +201,7 @@ struct Illustration {
     /// recupera el borde escrito en el antialias; por encima, baja, que es lo que
     /// promedia el grano. Con --no-simplify se trabaja sobre la retícula del
     /// original tal cual.
-    #[arg(long, default_value_t = img2svg::resample::SIMPLIFY)]
+    #[arg(long, default_value_t = vektro::resample::SIMPLIFY)]
     simplify: f64,
 
     /// Segmenta sobre la retícula del original, sin elegir escala de trabajo.
@@ -400,7 +400,7 @@ fn main() -> ExitCode {
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            eprintln!("img2svg: {err}");
+            eprintln!("vektro: {err}");
             ExitCode::FAILURE
         }
     }
@@ -447,7 +447,7 @@ fn run_illustration(args: &Illustration) -> Result<(), String> {
     report_background(&out);
     // El número de regiones es lo que se mueve al tocar el filtrado de motas, y
     // no se deduce de los paths: un color con varias regiones va en un `<g>`.
-    if let img2svg::Detail::Cluster {
+    if let vektro::Detail::Cluster {
         regions,
         ramps,
         scale,
@@ -483,7 +483,7 @@ fn convert(common: &Common, config: &Config) -> Result<(Conversion, PathBuf), St
     let data = std::fs::read(&common.input)
         .map_err(|e| format!("no se pudo leer {}: {e}", common.input.display()))?;
 
-    let out = img2svg::convert(&data, config).map_err(|e| e.to_string())?;
+    let out = vektro::convert(&data, config).map_err(|e| e.to_string())?;
 
     let path = common
         .output
@@ -527,10 +527,10 @@ fn report_softness(args: &Illustration) -> Result<(), String> {
         .to_rgba8();
 
     let cluster = match args.config().segmentation {
-        img2svg::Segmentation::Cluster(options) => options,
+        vektro::Segmentation::Cluster(options) => options,
         _ => unreachable!("este subcomando siempre segmenta por clustering"),
     };
-    let medidas = img2svg::softness_of(&img, &cluster);
+    let medidas = vektro::softness_of(&img, &cluster);
     if medidas.is_empty() {
         eprintln!("ninguna frontera interior que medir");
         return Ok(());
@@ -544,7 +544,7 @@ fn report_softness(args: &Illustration) -> Result<(), String> {
     eprintln!("blandura  fronteras   píxeles de frontera");
     let tope = medidas.iter().map(|m| m.width as usize).max().unwrap_or(0);
     for ancho in 0..=tope {
-        let iguales: Vec<&img2svg::softness::Softness> = medidas
+        let iguales: Vec<&vektro::softness::Softness> = medidas
             .iter()
             .filter(|m| m.width as usize == ancho)
             .collect();
@@ -560,7 +560,7 @@ fn report_softness(args: &Illustration) -> Result<(), String> {
         );
     }
 
-    let mut largas: Vec<&img2svg::softness::Softness> = medidas.iter().collect();
+    let mut largas: Vec<&vektro::softness::Softness> = medidas.iter().collect();
     largas.sort_by_key(|m| std::cmp::Reverse(m.cracks));
     eprintln!("\nlas fronteras más largas:");
     for m in largas.iter().take(14) {
