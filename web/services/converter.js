@@ -34,14 +34,58 @@ export const pending = signal(false);
 /** Se está decodificando y leyendo la imagen, antes de que haya nada que pintar. */
 export const decoding = signal(false);
 
-const worker = new Worker(new URL("./worker.js", import.meta.url), {
-  type: "module",
-});
+let worker = null;
+
+function createWorker() {
+  const w = new Worker(new URL("./worker.js", import.meta.url), {
+    type: "module",
+  });
+
+  w.onmessage = ({ data }) => {
+    // Una respuesta de una petición ya superada no debe pintar nada.
+    if (data.id !== request) return;
+
+    if (data.kind === "stage") return stage(data.stage, running);
+    if (data.kind === "progress") return advance(data.value);
+    if (data.kind === "error") {
+      endProgress();
+      return fail(data.message);
+    }
+    if (data.kind === "done") return done(data.result, data.ms);
+  };
+
+  w.onerror = (e) => {
+    endProgress();
+    fail(`El worker ha fallado: ${e.message}`);
+  };
+
+  return w;
+}
 
 /** Id de la petición en vuelo: las respuestas viejas se descartan. */
 let request = 0;
 let timer;
 let hiding;
+
+worker = createWorker();
+
+function abortWorker() {
+  if (worker) {
+    worker.terminate();
+  }
+  worker = createWorker();
+  request += 1;
+
+  const currentPixels = image.peek();
+  if (currentPixels) {
+    const rgba = new Uint8Array(currentPixels.data);
+    send("image", {
+      width: currentPixels.width,
+      height: currentPixels.height,
+      rgba: rgba.slice(),
+    });
+  }
+}
 
 function send(kind, payload, transfer = []) {
   const id = ++request;
@@ -49,25 +93,12 @@ function send(kind, payload, transfer = []) {
   return id;
 }
 
-worker.onmessage = ({ data }) => {
-  // Una respuesta de una petición ya superada no debe pintar nada.
-  if (data.id !== request) return;
-
-  if (data.kind === "stage") return stage(data.stage);
-  if (data.kind === "progress") return advance(data.value);
-  if (data.kind === "error") {
-    endProgress();
-    return fail(data.message);
-  }
-  if (data.kind === "done") return done(data.result, data.ms);
-};
-
-worker.onerror = (e) => {
-  endProgress();
-  fail(`El worker ha fallado: ${e.message}`);
-};
-
 /* --------------------------------------------------------------- progreso --- */
+
+const MODE_NAMES = {
+  illustration: "ilustración",
+  pixelart: "pixel art",
+};
 
 const STAGES = {
   decode: { at: 15, label: "Decodificando la imagen…" },
@@ -76,13 +107,20 @@ const STAGES = {
   convert: { at: 75, label: "Convirtiendo…", pulse: true },
 };
 
-function stage(name) {
+function stage(name, modeName) {
   const step = STAGES[name];
   if (!step) return;
   clearTimeout(hiding);
+
+  let label = step.label;
+  if (name === "convert") {
+    const target = MODE_NAMES[modeName] || modeName;
+    label = target ? `Convirtiendo a ${target}…` : step.label;
+  }
+
   progress.value = {
     at: step.at,
-    label: step.label,
+    label,
     pulse: Boolean(step.pulse),
   };
 }
@@ -121,9 +159,104 @@ function endProgress() {
 
 const frame = () => new Promise((r) => requestAnimationFrame(() => r()));
 
+export const UNSUPPORTED_FORMAT_ERROR =
+  "Formato no compatible. Por favor, selecciona una imagen rasterizada (.png, .jpg, .webp, .gif, .avif, .bmp, .ico).";
+
+export function isSupportedRasterFormat(file, name = "") {
+  const filename = (name || file?.name || "").toLowerCase();
+  const mime = (file?.type || "").toLowerCase();
+
+  if (mime === "image/svg+xml" || filename.endsWith(".svg")) {
+    return false;
+  }
+
+  const allowedExts = [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
+    ".gif",
+    ".avif",
+    ".bmp",
+    ".ico",
+  ];
+  const allowedMimes = [
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    "image/gif",
+    "image/avif",
+    "image/bmp",
+    "image/x-icon",
+    "image/vnd.microsoft.icon",
+  ];
+
+  return (
+    allowedExts.some((ext) => filename.endsWith(ext)) ||
+    allowedMimes.includes(mime)
+  );
+}
+
+async function decodeImageBlob(blob, name = "") {
+  if (!isSupportedRasterFormat(blob, name)) {
+    throw new Error(UNSUPPORTED_FORMAT_ERROR);
+  }
+
+  try {
+    const bitmap = await createImageBitmap(blob);
+    if (bitmap.width > 0 && bitmap.height > 0) {
+      return {
+        width: bitmap.width,
+        height: bitmap.height,
+        drawable: bitmap,
+        close: () => bitmap.close?.(),
+      };
+    }
+    bitmap.close?.();
+  } catch {
+    // Si createImageBitmap falla, cae en el fallback de elemento Image
+  }
+
+  return await decodeViaImageElement(blob);
+}
+
+function decodeViaImageElement(blob, defaultW, defaultH) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const w = img.naturalWidth || defaultW || 800;
+      const h = img.naturalHeight || defaultH || 800;
+      if (w <= 0 || h <= 0) {
+        reject(new Error("La imagen tiene dimensiones nulas."));
+        return;
+      }
+      resolve({
+        width: w,
+        height: h,
+        drawable: img,
+        close: () => {},
+      });
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("El navegador no ha podido decodificar esa imagen."));
+    };
+    img.src = url;
+  });
+}
+
 export async function load(blob, name) {
   clearTimeout(timer);
   error.value = "";
+
+  const filename = name ?? blob.name ?? "";
+  if (!isSupportedRasterFormat(blob, filename)) {
+    endProgress();
+    return fail(UNSUPPORTED_FORMAT_ERROR);
+  }
+
   // El espacio de trabajo aparece ya, con esqueletos: así se ve la forma de la
   // página desde el primer momento en vez de una zona de carga congelada.
   active.value = true;
@@ -135,14 +268,14 @@ export async function load(blob, name) {
   result.value = null;
 
   stage("decode");
-  let bitmap;
+  let decoded;
   try {
-    bitmap = await createImageBitmap(blob);
-  } catch {
+    decoded = await decodeImageBlob(blob, filename);
+  } catch (err) {
     decoding.value = false;
     pending.value = false;
     endProgress();
-    return fail("El navegador no ha podido decodificar esa imagen.");
+    return fail(err?.message || "El navegador no ha podido decodificar esa imagen.");
   }
 
   stage("sample");
@@ -151,15 +284,15 @@ export async function load(blob, name) {
   await frame();
 
   const canvas = document.createElement("canvas");
-  canvas.width = bitmap.width;
-  canvas.height = bitmap.height;
+  canvas.width = decoded.width;
+  canvas.height = decoded.height;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  ctx.drawImage(bitmap, 0, 0);
-  const pixels = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
-  bitmap.close();
+  ctx.drawImage(decoded.drawable, 0, 0);
+  const pixels = ctx.getImageData(0, 0, decoded.width, decoded.height);
+  decoded.close();
 
   source.value = {
-    name: name.replace(/\.[^.]+$/, "") || "imagen",
+    name: filename.replace(/\.[^.]+$/, "") || "imagen",
     width: pixels.width,
     height: pixels.height,
     bytes: blob.size,
@@ -167,11 +300,10 @@ export async function load(blob, name) {
   image.value = pixels;
   decoding.value = false;
 
-  // Los píxeles se transfieren (no se copian) y se quedan en el worker: cada
-  // cambio de ajuste manda sólo las opciones.
+  // Los píxeles se envían al worker: cada cambio de ajuste manda sólo las opciones.
   const rgba = new Uint8Array(pixels.data);
-  send("image", { width: pixels.width, height: pixels.height, rgba }, [
-    rgba.buffer,
+  send("image", { width: pixels.width, height: pixels.height, rgba: rgba.slice() }, [
+    rgba.slice().buffer,
   ]);
   return true;
 }
@@ -195,8 +327,13 @@ let running = "";
 
 function run(mode, options) {
   if (!source.peek()) return;
+  if (pending.peek()) {
+    abortWorker();
+  }
   running = mode;
   pending.value = true;
+  error.value = "";
+  stage("convert", mode);
   send("convert", { engine: mode, options });
 }
 
@@ -213,6 +350,10 @@ function done(out, ms) {
 function fail(message) {
   error.value = message;
   pending.value = false;
+  decoding.value = false;
+  if (!source.peek()) {
+    active.value = false;
+  }
   return false;
 }
 

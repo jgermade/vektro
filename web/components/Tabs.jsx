@@ -19,6 +19,7 @@ export function Tabs({ label, tabs, active, onSelect }) {
         <button
           key={tab.id}
           id={`tab-${tab.id}`}
+          data-tab={tab.id}
           class={tab.id === active ? "tab on" : "tab"}
           role="tab"
           type="button"
@@ -27,8 +28,11 @@ export function Tabs({ label, tabs, active, onSelect }) {
           onClick={() => onSelect(tab.id)}
           onKeyDown={(e) => onKeyDown(e, i)}
         >
-          <span class="tab-name">{tab.name}</span>
-          <span class="tab-hint">{tab.hint}</span>
+          {tab.icon ? <span class="tab-icon-wrap">{tab.icon}</span> : null}
+          <span class="tab-text">
+            <span class="tab-name">{tab.name}</span>
+            <span class="tab-hint">{tab.hint}</span>
+          </span>
         </button>
       ))}
     </nav>

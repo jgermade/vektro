@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import { CanvasBox, Figure } from "../components/CanvasBox.jsx";
+import { ProcessingPlaceholder } from "../components/ProcessingPlaceholder.jsx";
 import { Progress } from "../components/Progress.jsx";
 import * as converter from "../services/converter.js";
 import { percent, size } from "../services/format.js";
@@ -28,6 +29,7 @@ export function Preview() {
   // Las cifras se leen con el vocabulario de la segmentación que las produjo,
   // no con el de la pestaña abierta.
   const report = result && engine ? MODES[engine].report(result) : null;
+  const currentMode = location.hash.slice(1) in MODES ? location.hash.slice(1) : "illustration";
 
   return (
     <section class="preview">
@@ -45,16 +47,16 @@ export function Preview() {
           caption="SVG"
           meta={report ? `${report.meta} · ${size(svg.length)}` : ""}
         >
-          {/*
-            El SVG lo acaba de escribir nuestro propio wasm a partir de píxeles
-            que no han salido del equipo: es contenido propio, no de terceros.
-          */}
           <CanvasBox
             id="resultBox"
-            stale={pending && Boolean(svg)}
-            skeleton={pending && !svg}
+            stale={false}
+            skeleton={!svg && !image}
           >
-            <div class="result-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+            {pending || !svg ? (
+              <ProcessingPlaceholder image={image} mode={currentMode} />
+            ) : (
+              <div class="result-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+            )}
           </CanvasBox>
         </Figure>
       </div>

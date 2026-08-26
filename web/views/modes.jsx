@@ -36,6 +36,14 @@ export const MODES = {
   pixelart: {
     name: "Pixel art",
     hint: "rejilla y píxeles cuadrados",
+    icon: (
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="3" y="3" width="7" height="7" rx="1.5" />
+        <rect x="14" y="3" width="7" height="7" rx="1.5" />
+        <rect x="3" y="14" width="7" height="7" rx="1.5" />
+        <rect x="14" y="14" width="7" height="7" rx="1.5" />
+      </svg>
+    ),
     note: (
       <>
         Detecta la rejilla midiendo la periodicidad del gradiente, reduce la
@@ -95,6 +103,14 @@ export const MODES = {
   illustration: {
     name: "Ilustración",
     hint: "sin rejilla, por colores",
+    icon: (
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 2a10 10 0 1 0 10 10c0-1.5-1.2-2.5-2.7-2.5H17a2 2 0 0 1-2-2v-.5C15 5.2 13.8 4 12.3 4H12z" />
+        <circle cx="7.5" cy="11.5" r="1.2" fill="currentColor" />
+        <circle cx="12" cy="7.5" r="1.2" fill="currentColor" />
+        <circle cx="16.5" cy="11.5" r="1.2" fill="currentColor" />
+      </svg>
+    ),
     note: (
       <>
         Agrupa los colores en una paleta por cercanía perceptual, etiqueta las
@@ -188,5 +204,5 @@ const HASH_ALIASES = { curves: "illustration", photo: "illustration" };
 
 export function modeFromHash() {
   const hash = location.hash.slice(1);
-  return HASH_ALIASES[hash] || (hash in MODES ? hash : "pixelart");
+  return HASH_ALIASES[hash] || (hash in MODES ? hash : "illustration");
 }

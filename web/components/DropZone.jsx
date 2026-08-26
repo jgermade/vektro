@@ -48,7 +48,7 @@ export function DropZone({ onFile, hidden }) {
         ref={input}
         id="file"
         type="file"
-        accept="image/*"
+        accept="image/png,image/jpeg,image/webp,image/gif,image/avif,image/bmp"
         hidden
         onChange={(e) => {
           const file = e.currentTarget.files[0];

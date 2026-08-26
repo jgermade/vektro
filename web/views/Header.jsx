@@ -1,10 +1,11 @@
 import { Tabs } from "../components/Tabs.jsx";
 import { MODES } from "./modes.jsx";
 
-const TABS = Object.entries(MODES).map(([id, { name, hint }]) => ({
+const TABS = Object.entries(MODES).map(([id, { name, hint, icon }]) => ({
   id,
   name,
   hint,
+  icon,
 }));
 
 export function Header({ mode, onSelect }) {
