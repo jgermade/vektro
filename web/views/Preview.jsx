@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { CanvasBox, Figure } from "../components/CanvasBox.jsx";
 import { ProcessingPlaceholder } from "../components/ProcessingPlaceholder.jsx";
+import { LightboxModal } from "../components/LightboxModal.jsx";
 import { Progress } from "../components/Progress.jsx";
 import * as converter from "../services/converter.js";
 import { percent, size } from "../services/format.js";
@@ -8,6 +9,7 @@ import { MODES } from "./modes.jsx";
 
 export function Preview() {
   const canvas = useRef(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
 
   const image = converter.image.value;
   const source = converter.source.value;
@@ -30,6 +32,7 @@ export function Preview() {
   // no con el de la pestaña abierta.
   const report = result && engine ? MODES[engine].report(result) : null;
   const currentMode = location.hash.slice(1) in MODES ? location.hash.slice(1) : "illustration";
+  const metaText = report ? `${report.meta} · ${size(svg?.length ?? 0)}` : "";
 
   return (
     <section class="preview">
@@ -45,7 +48,7 @@ export function Preview() {
 
         <Figure
           caption="SVG"
-          meta={report ? `${report.meta} · ${size(svg.length)}` : ""}
+          meta={metaText}
         >
           <CanvasBox
             id="resultBox"
@@ -55,11 +58,24 @@ export function Preview() {
             {pending || !svg ? (
               <ProcessingPlaceholder image={image} mode={currentMode} />
             ) : (
-              <div class="result-svg" dangerouslySetInnerHTML={{ __html: svg }} />
+              <div
+                class="result-svg clickable"
+                title="Haz clic para ver a pantalla completa"
+                onClick={() => setLightboxOpen(true)}
+                dangerouslySetInnerHTML={{ __html: svg }}
+              />
             )}
           </CanvasBox>
         </Figure>
       </div>
+
+      <LightboxModal
+        open={lightboxOpen}
+        svg={svg}
+        meta={metaText}
+        onClose={() => setLightboxOpen(false)}
+        onDownload={converter.download}
+      />
 
       <Progress
         hidden={!progress}
