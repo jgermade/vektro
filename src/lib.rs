@@ -21,6 +21,7 @@
 //! ```
 
 pub mod background;
+pub mod centerline;
 #[cfg(feature = "illustration")]
 pub mod boundary;
 pub mod checker;
