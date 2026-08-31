@@ -5,7 +5,7 @@ import { ConfirmModal } from "../components/ConfirmModal.jsx";
 import * as converter from "../services/converter.js";
 import { Header } from "./Header.jsx";
 import { Footer } from "./Footer.jsx";
-import { Preview } from "./Preview.jsx";
+import { OriginalPane, ResultPane, ResultHintCard, ResultStats } from "./Preview.jsx";
 import { PixelartPanel } from "./PixelartPanel.jsx";
 import { IllustrationPanel } from "./IllustrationPanel.jsx";
 import { MODES, modeFromHash } from "./modes.jsx";
@@ -186,24 +186,45 @@ export function App() {
 
       <Header mode={mode} onSelect={choose} />
 
-      <main>
+      <main class={active ? "has-active" : ""}>
         <DropZone hidden={active} onFile={(file) => handleFileSelect(file)} />
         {!active ? (
           <p class="drop-mode-note">{MODES[mode].note}</p>
         ) : null}
 
         <div class="workspace" hidden={!active}>
-          {active ? <Preview /> : null}
+          {active ? (
+            <>
+              <div class="workspace-scroll-col">
+                <div class="workspace-item-original">
+                  <OriginalPane />
+                </div>
+                <div class="workspace-item-controls">
+                  {Object.entries(PANELS).map(([id, Panel]) => (
+                    <Panel
+                      key={id}
+                      hidden={id !== mode}
+                      values={settings[id]}
+                      onChange={change}
+                      actions={actions}
+                    />
+                  ))}
+                </div>
+              </div>
 
-          {Object.entries(PANELS).map(([id, Panel]) => (
-            <Panel
-              key={id}
-              hidden={id !== mode}
-              values={settings[id]}
-              onChange={change}
-              actions={actions}
-            />
-          ))}
+              <div class="workspace-sticky-col">
+                <div class="workspace-item-result">
+                  <ResultPane />
+                </div>
+                <div class="workspace-item-hint">
+                  <ResultHintCard />
+                </div>
+                <div class="workspace-item-stats">
+                  <ResultStats />
+                </div>
+              </div>
+            </>
+          ) : null}
         </div>
 
         <p class="error" hidden={!error}>

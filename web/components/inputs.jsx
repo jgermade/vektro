@@ -53,89 +53,35 @@ export function Range({
   suffix,
   onChange,
   onHover,
-  vertical = false,
   hasAuto = false,
   autoChecked = false,
   onAutoChange,
   disabled = false,
 }) {
-  if (vertical) {
-    const isInactive = disabled || autoChecked;
-    return (
-      <label
-        class={`field field-vertical ${isInactive ? "is-disabled" : ""}`}
-        hidden={hidden}
-        onMouseEnter={() => onHover?.(hint)}
-        onFocusCapture={() => onHover?.(hint)}
-      >
-        <span class="field-title">{label}</span>
-        <div class="vertical-range-wrapper">
-          <button
-            type="button"
-            class="step-btn step-plus"
-            disabled={isInactive || value >= max}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const stepVal = Number(step) || 1;
-              const next = Math.min(Number(max), Number((Number(value) + stepVal).toFixed(4)));
-              onChange(next, { continuous: false });
-            }}
-            title="Incrementar"
-          >
-            +
-          </button>
-
-          <input
-            type="range"
-            class="vertical-slider"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            disabled={isInactive}
-            onInput={(e) =>
-              onChange(Number(e.currentTarget.value), { continuous: true })
-            }
-          />
-
-          <button
-            type="button"
-            class="step-btn step-minus"
-            disabled={isInactive || value <= min}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const stepVal = Number(step) || 1;
-              const next = Math.max(Number(min), Number((Number(value) - stepVal).toFixed(4)));
-              onChange(next, { continuous: false });
-            }}
-            title="Decrementar"
-          >
-            −
-          </button>
-        </div>
-        <b class="field-value">
-          {value}
-          {suffix ? ` ${suffix}` : ""}
-        </b>
-        {hasAuto ? (
-          <div class="auto-toggle-row">
-            <Check checked={autoChecked} onChange={onAutoChange} />
-            <span class="auto-label">auto</span>
-          </div>
-        ) : null}
-      </label>
-    );
-  }
+  const isInactive = disabled || autoChecked;
 
   return (
     <Field
       label={
-        <>
-          {label} <b>{value}</b>
-          {suffix ? ` ${suffix}` : null}
-        </>
+        <span class="range-label-row">
+          <span>{label}</span>
+          <span class="range-label-right">
+            {hasAuto ? (
+              <label class="auto-inline-check" title="Ajuste automático según imagen">
+                <Check checked={autoChecked} onChange={onAutoChange} />
+                <span>auto</span>
+              </label>
+            ) : null}
+            {!autoChecked ? (
+              <b>
+                {value}
+                {suffix ? ` ${suffix}` : ""}
+              </b>
+            ) : (
+              <b class="auto-active-badge">auto</b>
+            )}
+          </span>
+        </span>
       }
       hint={hint}
       hidden={hidden}
@@ -147,7 +93,7 @@ export function Range({
         max={max}
         step={step}
         value={value}
-        disabled={disabled}
+        disabled={isInactive}
         onInput={(e) =>
           onChange(Number(e.currentTarget.value), { continuous: true })
         }
