@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
-export function LightboxModal({ open, svg, meta, onClose, onDownload }) {
+export function LightboxModal({ open, svg, meta, initialFitMode = "vertical", onClose, onDownload }) {
   const dialogRef = useRef(null);
   const [zoom, setZoom] = useState(1.0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  const [fitMode, setFitMode] = useState(initialFitMode);
 
   const dragStartRef = useRef({ x: 0, y: 0 });
   const panStartRef = useRef({ x: 0, y: 0 });
+  const touchRef = useRef({ dist: 0, initialZoom: 1 });
 
   const resetZoomAndPan = () => {
     setZoom(1.0);
@@ -19,6 +21,10 @@ export function LightboxModal({ open, svg, meta, onClose, onDownload }) {
     resetZoomAndPan();
     onClose?.();
   };
+
+  useEffect(() => {
+    setFitMode(initialFitMode);
+  }, [initialFitMode]);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -74,7 +80,6 @@ export function LightboxModal({ open, svg, meta, onClose, onDownload }) {
   };
 
   const handleMouseDown = (e) => {
-    // Si el clic no fue en un botón, iniciar arrastre
     if (e.target.closest("button")) return;
     setIsDragging(true);
     dragStartRef.current = { x: e.clientX, y: e.clientY };
@@ -93,6 +98,48 @@ export function LightboxModal({ open, svg, meta, onClose, onDownload }) {
 
   const handleMouseUp = () => {
     setIsDragging(false);
+  };
+
+  const handleTouchStart = (e) => {
+    if (e.target.closest("button")) return;
+    if (e.touches.length === 2) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      touchRef.current = { dist, initialZoom: zoom };
+    } else if (e.touches.length === 1) {
+      const t1 = e.touches[0];
+      dragStartRef.current = { x: t1.clientX, y: t1.clientY };
+      panStartRef.current = { ...pan };
+      setIsDragging(true);
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      if (touchRef.current.dist > 0) {
+        const scale = dist / touchRef.current.dist;
+        const nextZoom = Math.min(6.0, Math.max(0.4, touchRef.current.initialZoom * scale));
+        setZoom(nextZoom);
+      }
+    } else if (e.touches.length === 1 && isDragging) {
+      const t1 = e.touches[0];
+      const dx = t1.clientX - dragStartRef.current.x;
+      const dy = t1.clientY - dragStartRef.current.y;
+      setPan({
+        x: panStartRef.current.x + dx,
+        y: panStartRef.current.y + dy,
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    touchRef.current.dist = 0;
   };
 
   if (!open) return null;
@@ -181,12 +228,37 @@ export function LightboxModal({ open, svg, meta, onClose, onDownload }) {
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
           style={{
             cursor: isDragging ? "grabbing" : zoom > 1.0 ? "grab" : "default",
           }}
         >
+          <button
+            type="button"
+            class="lightbox-floating-reset-btn"
+            onClick={(e) => {
+              e.stopPropagation();
+              resetZoomAndPan();
+              setFitMode((prev) => (prev === "vertical" ? "horizontal" : "vertical"));
+            }}
+            title={fitMode === "vertical" ? "Restablecer y cambiar a ajuste horizontal" : "Restablecer y cambiar a ajuste vertical"}
+            aria-label="Restablecer vista y alternar ajuste"
+          >
+            {fitMode === "vertical" ? (
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" />
+              </svg>
+            ) : (
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" />
+              </svg>
+            )}
+          </button>
+
           <div
-            class="lightbox-svg-wrapper checker"
+            class={`lightbox-svg-wrapper checker fit-${fitMode}`}
             style={{
               transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transformOrigin: "center center",

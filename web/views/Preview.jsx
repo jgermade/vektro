@@ -37,6 +37,14 @@ export function OriginalPane() {
 export function ResultPane() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [fitMode, setFitMode] = useState("vertical");
+  const [isDragging, setIsDragging] = useState(false);
+
+  const svgRef = useRef(null);
+  const panRef = useRef({ x: 0, y: 0 });
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const panStartRef = useRef({ x: 0, y: 0 });
+  const hasMovedRef = useRef(false);
 
   const image = converter.image.value;
   const source = converter.source.value;
@@ -48,33 +56,60 @@ export function ResultPane() {
   const decoding = converter.decoding.value;
   const ms = converter.elapsed.value;
 
-  async function handleCopy() {
-    if (!(await converter.copy())) return;
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  }
-
-  async function handleShare() {
-    if (!svg) return;
-    try {
-      const file = new File([svg], "vector.svg", { type: "image/svg+xml" });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: "Vektro SVG",
-          files: [file],
-        });
-      } else if (navigator.share) {
-        await navigator.share({
-          title: "Vektro SVG",
-          text: svg,
-        });
-      } else {
-        await handleCopy();
-      }
-    } catch {
-      // User cancelled share dialog
+  useEffect(() => {
+    panRef.current = { x: 0, y: 0 };
+    if (svgRef.current) {
+      svgRef.current.style.transform = "";
     }
-  }
+  }, [fitMode, image]);
+
+  const handlePointerDown = (e) => {
+    if (e.target.closest("button")) return;
+    e.preventDefault();
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // Ignore if capture fails
+    }
+    setIsDragging(true);
+    hasMovedRef.current = false;
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    panStartRef.current = { ...panRef.current };
+  };
+
+  const handlePointerMove = (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      hasMovedRef.current = true;
+    }
+    const x = panStartRef.current.x + dx;
+    const y = panStartRef.current.y + dy;
+    panRef.current = { x, y };
+
+    if (svgRef.current) {
+      svgRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    }
+  };
+
+  const handlePointerUp = (e) => {
+    if (!isDragging) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // Capture already released
+    }
+    setIsDragging(false);
+    if (!hasMovedRef.current) {
+      setLightboxOpen(true);
+    }
+  };
+
+  const handleSvgClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
 
   const report = result && engine ? MODES[engine].report(result) : null;
   const currentMode = location.hash.slice(1) in MODES ? location.hash.slice(1) : "illustration";
@@ -88,16 +123,47 @@ export function ResultPane() {
       >
         <CanvasBox
           id="resultBox"
+          class={`fit-${fitMode} ${isDragging ? "is-dragging" : ""}`}
           stale={pending && Boolean(svg)}
           skeleton={!svg && !image}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
         >
-          {pending && !svg ? (
-            <ProcessingPlaceholder image={image} mode={currentMode} />
+          <button
+            type="button"
+            class="floating-fit-btn"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setFitMode((prev) => (prev === "vertical" ? "horizontal" : "vertical"));
+            }}
+            title={fitMode === "vertical" ? t("fit_horizontal", "Cambiar a ajuste horizontal") : t("fit_vertical", "Cambiar a ajuste vertical")}
+            aria-label={t("toggle_fit", "Conmutar ajuste de imagen")}
+          >
+            {fitMode === "vertical" ? (
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" />
+              </svg>
+            ) : (
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" />
+              </svg>
+            )}
+          </button>
+
+          {pending ? (
+            <ProcessingPlaceholder image={image} mode={currentMode} fitMode={fitMode} />
           ) : (
             <div
+              ref={svgRef}
               class="result-svg clickable"
               title={t("full_page_view", "Haz clic para ver a pantalla completa")}
-              onClick={() => setLightboxOpen(true)}
+              onClick={handleSvgClick}
+              style={{
+                cursor: isDragging ? "grabbing" : "grab",
+              }}
               dangerouslySetInnerHTML={{ __html: svg }}
             />
           )}
@@ -110,6 +176,7 @@ export function ResultPane() {
         open={lightboxOpen}
         svg={svg}
         meta={metaText}
+        initialFitMode={fitMode}
         onClose={() => setLightboxOpen(false)}
         onDownload={converter.download}
       />

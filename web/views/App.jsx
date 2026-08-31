@@ -252,10 +252,32 @@ export function App() {
   // vuelve a convertir: sólo lo haría un cambio del usuario.
   const result = converter.result.value;
   const engine = converter.engine.value;
+  const src = converter.source.value;
   useEffect(() => {
     if (engine !== "pixelart" || !result || !settings.pixelart.autoScale) return;
-    const detected = Math.max(result.cellWidth, result.cellHeight).toFixed(2);
-    if (settings.pixelart.scale === detected) return;
+
+    // Si la imagen no tiene rejilla de píxeles propia (celda 1x1 en foto o ilustración),
+    // le asignamos automáticamente una escala de ~64 celdas para darle aspecto pixel art retro.
+    const isNoGrid = result.cellWidth <= 1.25 && result.cellHeight <= 1.25;
+    const isSubstantialImage = src && (src.width > 120 || src.height > 120);
+
+    if (isNoGrid && isSubstantialImage) {
+      const maxDim = Math.max(src.width, src.height);
+      const targetCells = 64;
+      const pixelArtScale = Math.max(2, Math.round(maxDim / targetCells));
+      const scaleStr = String(pixelArtScale);
+
+      if (Number(settings.pixelart.scale) !== pixelArtScale) {
+        const newPixelart = { ...settings.pixelart, scale: scaleStr };
+        setSettings((prev) => ({ ...prev, pixelart: newPixelart }));
+        converter.convert("pixelart", MODES.pixelart.options(newPixelart));
+      }
+      return;
+    }
+
+    const detectedNum = Math.max(result.cellWidth, result.cellHeight);
+    const detected = detectedNum.toFixed(2);
+    if (Number(settings.pixelart.scale) === detectedNum || settings.pixelart.scale === detected) return;
     setSettings((prev) => ({
       ...prev,
       pixelart: { ...prev.pixelart, scale: detected },

@@ -326,8 +326,11 @@ export function convert(engine, options, { debounce = false } = {}) {
 }
 
 let running = "";
+let conversionTimeoutTimer = null;
+const WASM_TIMEOUT_MS = 60000;
 
 function run(mode, options) {
+  clearTimeout(conversionTimeoutTimer);
   if (!source.peek()) return;
   if (pending.peek()) {
     abortWorker();
@@ -336,10 +339,22 @@ function run(mode, options) {
   pending.value = true;
   error.value = "";
   stage("convert", mode);
+
+  conversionTimeoutTimer = setTimeout(() => {
+    if (pending.peek()) {
+      abortWorker();
+      endProgress();
+      fail(
+        "La imagen no parece tener una cuadrícula de píxeles clara o el procesamiento ha tardado demasiado. Te recomendamos probar la pestaña Ilustración."
+      );
+    }
+  }, WASM_TIMEOUT_MS);
+
   send("convert", { engine: mode, options });
 }
 
 function done(out, ms) {
+  clearTimeout(conversionTimeoutTimer);
   svg.value = out.svg;
   result.value = out;
   engine.value = running;
@@ -350,6 +365,7 @@ function done(out, ms) {
 }
 
 function fail(message) {
+  clearTimeout(conversionTimeoutTimer);
   error.value = message;
   pending.value = false;
   decoding.value = false;

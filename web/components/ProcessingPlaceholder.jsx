@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 
-export function ProcessingPlaceholder({ image, mode }) {
+export function ProcessingPlaceholder({ image, mode, fitMode = "vertical" }) {
   const canvasRef = useRef(null);
   const pixelCanvasRef = useRef(null);
   const feFuncRRef = useRef(null);
@@ -9,24 +9,59 @@ export function ProcessingPlaceholder({ image, mode }) {
 
   useEffect(() => {
     if (!image || !canvasRef.current) return;
-    canvasRef.current.width = image.width;
-    canvasRef.current.height = image.height;
+    const maxDim = 800;
+    let targetW = image.width;
+    let targetH = image.height;
+    if (targetW > maxDim || targetH > maxDim) {
+      const scale = maxDim / Math.max(targetW, targetH);
+      targetW = Math.round(targetW * scale);
+      targetH = Math.round(targetH * scale);
+    }
+    canvasRef.current.width = targetW;
+    canvasRef.current.height = targetH;
     const ctx = canvasRef.current.getContext("2d");
-    ctx.putImageData(image, 0, 0);
+
+    if (targetW === image.width && targetH === image.height) {
+      ctx.putImageData(image, 0, 0);
+    } else {
+      const fullCanvas = document.createElement("canvas");
+      fullCanvas.width = image.width;
+      fullCanvas.height = image.height;
+      fullCanvas.getContext("2d").putImageData(image, 0, 0);
+      ctx.drawImage(fullCanvas, 0, 0, targetW, targetH);
+    }
   }, [image]);
 
   // Animación Pixel art: oscilar tamaño de píxeles
   useEffect(() => {
     if (!image || mode !== "pixelart" || !pixelCanvasRef.current) return;
+    const maxDim = 800;
+    let animW = image.width;
+    let animH = image.height;
+    if (animW > maxDim || animH > maxDim) {
+      const scale = maxDim / Math.max(animW, animH);
+      animW = Math.round(animW * scale);
+      animH = Math.round(animH * scale);
+    }
+
     const canvas = pixelCanvasRef.current;
-    canvas.width = image.width;
-    canvas.height = image.height;
+    canvas.width = animW;
+    canvas.height = animH;
     const ctx = canvas.getContext("2d");
 
     const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = image.width;
-    tempCanvas.height = image.height;
-    tempCanvas.getContext("2d").putImageData(image, 0, 0);
+    tempCanvas.width = animW;
+    tempCanvas.height = animH;
+    const tempCtx = tempCanvas.getContext("2d");
+    if (animW === image.width && animH === image.height) {
+      tempCtx.putImageData(image, 0, 0);
+    } else {
+      const fullCanvas = document.createElement("canvas");
+      fullCanvas.width = image.width;
+      fullCanvas.height = image.height;
+      fullCanvas.getContext("2d").putImageData(image, 0, 0);
+      tempCtx.drawImage(fullCanvas, 0, 0, animW, animH);
+    }
 
     const offscreen = document.createElement("canvas");
     const offCtx = offscreen.getContext("2d");
@@ -38,16 +73,19 @@ export function ProcessingPlaceholder({ image, mode }) {
       const elapsed = (now - startTime) / 1000;
       const pixelSize = 8 + 20 * (0.5 + 0.5 * Math.sin(elapsed * 2.8));
 
-      const lowW = Math.max(8, Math.round(image.width / pixelSize));
-      const lowH = Math.max(8, Math.round(image.height / pixelSize));
+      const lowW = Math.max(8, Math.round(animW / pixelSize));
+      const lowH = Math.max(8, Math.round(animH / pixelSize));
 
-      offscreen.width = lowW;
-      offscreen.height = lowH;
+      if (offscreen.width !== lowW || offscreen.height !== lowH) {
+        offscreen.width = lowW;
+        offscreen.height = lowH;
+      }
+
       offCtx.drawImage(tempCanvas, 0, 0, lowW, lowH);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, animW, animH);
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(offscreen, 0, 0, lowW, lowH, 0, 0, image.width, image.height);
+      ctx.drawImage(offscreen, 0, 0, lowW, lowH, 0, 0, animW, animH);
 
       animId = requestAnimationFrame(render);
     }
@@ -88,13 +126,11 @@ export function ProcessingPlaceholder({ image, mode }) {
     };
   }, [mode]);
 
-  const aspectRatio = image ? `${image.width} / ${image.height}` : "1 / 1";
   const badgeLabel = mode === "pixelart" ? "Pixel art" : "Ilustración";
 
   return (
     <div
-      class={`processing-placeholder mode-${mode}`}
-      style={{ aspectRatio }}
+      class={`processing-placeholder mode-${mode} fit-${fitMode}`}
       aria-label="Procesando imagen"
     >
       {image ? (
