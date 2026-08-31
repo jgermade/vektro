@@ -312,6 +312,21 @@ impl Default for ClusterOptions {
     }
 }
 
+/// Evalúa automáticamente el filtro de motas según la escala de trabajo `scale`.
+pub fn auto_speckle(scale: f64) -> usize {
+    let s = scale.max(1.0);
+    ((crate::resample::FEATURE * crate::resample::FEATURE) * s).round().clamp(4.0, 8.0) as usize
+}
+
+/// Evalúa automáticamente el grosor mínimo según la escala y la presencia de trazos finos.
+pub fn auto_thickness(scale: f64, has_thin_lines: bool) -> f64 {
+    if has_thin_lines {
+        0.5
+    } else {
+        (crate::resample::FEATURE * 0.5 * scale.max(1.0)).clamp(0.5, 2.0)
+    }
+}
+
 /// Una región conexa de un mismo color de la paleta.
 #[derive(Clone, Debug)]
 pub struct Cluster {

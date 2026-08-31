@@ -572,11 +572,33 @@ fn un_circulo_sale_liso() {
 
     assert_eq!(paths.len(), 1, "el círculo es un solo subtrazado");
     let circulo = &paths[0];
-    assert!(
-        circulo.len() <= 12,
-        "un círculo debería salir en pocos tramos, y salen {}: {}",
+    assert_eq!(
+        circulo.len(),
+        4,
+        "un círculo debe salir en 4 arcos cúbicos (90° cada uno), y salen {}: {}",
         circulo.len(),
         out.svg
+    );
+
+    // Medir la desviación radial máxima del muestreo respecto al centro y radio medios.
+    // Con 4 cúbicas a 90°, el error radial teórico es 0.027% del radio (<0.01 px a r=30).
+    let samples: Vec<Point> = circulo.iter().flat_map(|seg| seg.sample()).collect();
+    let n = samples.len() as f64;
+    let cx: f64 = samples.iter().map(|p| p.0).sum::<f64>() / n;
+    let cy: f64 = samples.iter().map(|p| p.1).sum::<f64>() / n;
+    let r_mean: f64 = samples
+        .iter()
+        .map(|p| ((p.0 - cx).powi(2) + (p.1 - cy).powi(2)).sqrt())
+        .sum::<f64>()
+        / n;
+    let max_dev = samples
+        .iter()
+        .map(|p| (((p.0 - cx).powi(2) + (p.1 - cy).powi(2)).sqrt() - r_mean).abs())
+        .fold(0.0f64, f64::max);
+
+    assert!(
+        max_dev < 0.15,
+        "la desviación radial del círculo debe ser < 0.15 px, y fue {max_dev:.4} px"
     );
 
     // En **todas** las juntas, y no sólo entre curvas: la primera versión de

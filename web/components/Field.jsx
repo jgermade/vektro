@@ -1,12 +1,19 @@
-// La forma que comparten los 21 ajustes: título, control(es) y la explicación
-// de debajo. El texto lo pone quien lo usa; aquí sólo está la caja.
+// La forma que comparten los ajustes: título, control(es) y la activación
+// de la explicación dinámica.
 
-export function Field({ label, hint, hidden, children }) {
+export function Field({ label, hint, hidden, onHover, children }) {
   return (
-    <label class="field" hidden={hidden}>
+    <label
+      class="field"
+      data-hint={hint || undefined}
+      hidden={hidden}
+      onMouseEnter={() => onHover?.(hint)}
+      onFocusCapture={() => onHover?.(hint)}
+      onClick={() => onHover?.(hint)}
+      onTouchStart={() => onHover?.(hint)}
+    >
       <span>{label}</span>
       {children}
-      {hint ? <small>{hint}</small> : null}
     </label>
   );
 }

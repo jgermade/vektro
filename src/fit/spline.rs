@@ -47,6 +47,48 @@ const CORNER_COS: f64 = 0.5;
 /// bytes. Dos pasadas es donde deja de mejorar.
 const REPARAM: usize = 2;
 
+/// Giro máximo que se le deja abarcar a una sola cúbica; 90°.
+///
+/// Es el arreglo de un fallo que la tolerancia no puede ver, porque mide otra
+/// cosa. Aceptar un tramo por su desviación es un límite **absoluto** en
+/// píxeles, pero lo que se aparta de un círculo una cúbica que abarca mucho
+/// ángulo es **proporcional al radio**:
+///
+/// | arco en una cúbica | error, en tantos por ciento del radio |
+/// | --- | --- |
+/// | 180° | 1,835 % |
+/// | 120° | 0,154 % |
+/// | **90°** | **0,027 %** |
+/// | 60° | 0,002 % |
+///
+/// A 180° eso son `0.018 * r`, que cabe en una tolerancia de 1,5 px para todo
+/// radio menor de 83 px. Es decir: cada redondeo y cada punto de un dibujo
+/// normal tenía barra libre para salir en dos cúbicas de media vuelta, con hasta
+/// px y medio de abombamiento. Y un abombamiento no es ruido: es una curva lisa
+/// que se aparta de la que debía ser, que es exactamente lo que se ve cuando un
+/// círculo sale «casi» redondo.
+///
+/// Medido sobre el punto de un logo —un círculo de radio 29,4 px—: salía en dos
+/// cúbicas con 0,580 px de desviación radial, el 1,97 % del radio, que es el
+/// 1,835 % teórico de una cúbica de 180°. El error era todo del ángulo; el
+/// ajuste de mínimos cuadrados era tan bueno como podía ser.
+///
+/// A 90° el error de forma baja a 0,027 % —menos de una milésima de píxel en
+/// cualquier dibujo— y la tolerancia vuelve a medir lo que dice medir. Cuesta
+/// dos cúbicas más por círculo: cuatro en vez de dos, que es el círculo de
+/// cuatro arcos de toda la vida.
+const MAX_TURN: f64 = std::f64::consts::FRAC_PI_2;
+
+/// Giro por debajo del cual un tramo que cabe en su cuerda sigue siendo recta;
+/// 12°.
+///
+/// Sin esto, el único criterio para emitir recta es la flecha contra la cuerda,
+/// y la flecha de un arco corto de radio grande es diminuta: cada trozo de curva
+/// que cabía en la tolerancia salía como cuerda y el arco acababa facetado. Doce
+/// grados deja pasar como recta el canto recto de verdad —cuyas tangentes de
+/// entrada y salida son la misma— sin dejar pasar un arco que se note.
+const FLAT_TURN: f64 = 0.209_439_510_239_319_5;
+
 /// Ajusta una cadena abierta. Los dos extremos son nodos: se clavan.
 pub fn open(points: &[Pt], tolerance: f64) -> Vec<Vertex> {
     let pts = points;
@@ -160,8 +202,8 @@ fn fit(pts: &[Pt], t0: Pt, t1: Pt, tolerance: f64) -> Vec<Seg> {
 
     while let Some((a, b, ta, tb)) = stack.pop() {
         // Dos puntos no dan curvatura, y un tramo que no se aparta de su cuerda
-        // es una recta: sale más corta que una cúbica y dice la verdad.
-        if b - a < 2 || straight(&pts[a..=b], tolerance) {
+        // y no gira apreciablemente es una recta.
+        if b - a < 2 || is_line(&pts[a..=b], ta, tb, tolerance) {
             out.push(Seg {
                 controls: None,
                 to: b,
@@ -185,7 +227,8 @@ fn fit(pts: &[Pt], t0: Pt, t1: Pt, tolerance: f64) -> Vec<Seg> {
             (err, worst) = deviation(sub, &u, &curve);
         }
 
-        if err <= tolerance * tolerance {
+        let turn = turn_angle(ta, neg(tb));
+        if err <= tolerance * tolerance && turn <= MAX_TURN {
             out.push(Seg {
                 controls: Some((curve.1, curve.2)),
                 to: b,
@@ -193,11 +236,14 @@ fn fit(pts: &[Pt], t0: Pt, t1: Pt, tolerance: f64) -> Vec<Seg> {
             continue;
         }
 
-        // Partir por el punto peor. El corte tiene que quedar por dentro o esto
-        // no termina.
-        let k = a + worst.clamp(1, b - a - 1);
-        // La misma tangente para los dos lados: el corte es del ajuste, no del
-        // dibujo, y ahí no debe verse nada.
+        // Partir por el punto de corte. Si es por exceso de giro, se parte por
+        // el centro para equilibrar el ángulo de las dos curvas; si es por error, por el peor punto.
+        let cut_idx = if turn > MAX_TURN {
+            (b - a) / 2
+        } else {
+            worst
+        };
+        let k = a + cut_idx.clamp(1, b - a - 1);
         let t = center(pts, k);
         stack.push((k, b, t, tb));
         stack.push((a, k, ta, neg(t)));
@@ -362,15 +408,22 @@ fn bezier(pts: &[Pt], u: &[f64], t0: Pt, t1: Pt) -> Cubic {
     let det = c00 * c11 - c01 * c01;
     // Cuerda de reserva cuando el sistema es degenerado o pide poner un control
     // detrás del extremo, que dibujaría un lazo.
-    let fallback = dist(p0, p3) / 3.0;
+    let chord = dist(p0, p3);
+    let fallback = chord / 3.0;
     let (mut alpha0, mut alpha1) = if det.abs() > 1e-12 {
         ((x0 * c11 - x1 * c01) / det, (c00 * x1 - c01 * x0) / det)
     } else {
         (fallback, fallback)
     };
-    if alpha0 <= 0.0 || alpha1 <= 0.0 {
+    if alpha0 <= 0.0 {
         alpha0 = fallback;
+    } else if alpha0 > chord {
+        alpha0 = chord;
+    }
+    if alpha1 <= 0.0 {
         alpha1 = fallback;
+    } else if alpha1 > chord {
+        alpha1 = chord;
     }
 
     (
@@ -439,6 +492,17 @@ fn derivative2(c: &Cubic, u: f64) -> Pt {
     let a = scale(sub(add(c.2, c.0), scale(c.1, 2.0)), 6.0 * v);
     let b = scale(sub(add(c.3, c.1), scale(c.2, 2.0)), 6.0 * u);
     add(a, b)
+}
+
+/// Si toda la polilínea cabe dentro de la tolerancia alrededor de su cuerda
+/// y no gira más allá del ángulo plano.
+fn is_line(pts: &[Pt], ta: Pt, tb: Pt, tolerance: f64) -> bool {
+    straight(pts, tolerance) && turn_angle(ta, neg(tb)) <= FLAT_TURN
+}
+
+/// Ángulo de giro en radianes entre dos vectores unitarios.
+fn turn_angle(v0: Pt, v1: Pt) -> f64 {
+    cos(v0, v1).clamp(-1.0, 1.0).acos()
 }
 
 /// Si toda la polilínea cabe dentro de la tolerancia alrededor de su cuerda.

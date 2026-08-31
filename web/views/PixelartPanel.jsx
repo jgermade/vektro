@@ -1,18 +1,37 @@
 import { Field, Row, RowLabel } from "../components/Field.jsx";
 import {
+  ButtonGroup,
   Check,
   ColorInput,
   NumberInput,
   Range,
-  Select,
   Toggle,
 } from "../components/inputs.jsx";
 import { Advanced } from "../components/Advanced.jsx";
-import { Actions } from "../components/Actions.jsx";
 import { FIT_OPTIONS, FIT_TOLERANCE, fitPatch } from "./modes.jsx";
+import * as converter from "../services/converter.js";
 
-export function PixelartPanel({ hidden, values: v, onChange, actions }) {
+export function PixelartPanel({ hidden, values: v, onChange }) {
   const set = (key) => (value, opts) => onChange({ [key]: value }, opts);
+
+  const HINTS = {
+    scale: "Píxeles reales que ocupa cada píxel del dibujo.",
+    tolerance: "Funde los tonos casi idénticos del ruido de compresión.",
+    removeChecker: "Devuelve a transparente el damero que se queda pegado al capturar la pantalla de un editor.",
+    alpha: "Por debajo, el píxel se considera transparente.",
+    pixelSize: "Unidades SVG por píxel del dibujo.",
+    background: "Sin marcar, el SVG queda con fondo transparente.",
+    removeBackground: "Vacía el color liso que rodea al dibujo y ajusta el lienzo a lo que queda. El mismo color encerrado dentro se conserva.",
+    mergeColors: "Ocupa menos, pero cada figura del SVG pasa a ser todo lo que comparte color, esté donde esté.",
+    fit: "En pixel art la escalera es el dibujo, así que lo normal es dejarla. El polígono endereza las diagonales y las curvas redondean el sprite.",
+    fitTolerance: "Cuánto puede apartarse la línea del contorno original.",
+  };
+
+  const setHint = (text) => {
+    if (text) {
+      converter.activeHint.value = text;
+    }
+  };
 
   return (
     <aside
@@ -24,7 +43,8 @@ export function PixelartPanel({ hidden, values: v, onChange, actions }) {
     >
       <Field
         label="Escala de la rejilla"
-        hint="Píxeles reales que ocupa cada píxel del dibujo."
+        hint={HINTS.scale}
+        onHover={() => setHint(HINTS.scale)}
       >
         <Row>
           <Check checked={v.autoScale} onChange={set("autoScale")} />
@@ -45,34 +65,63 @@ export function PixelartPanel({ hidden, values: v, onChange, actions }) {
 
       <Range
         label="Tolerancia de color"
+        hint={HINTS.tolerance}
         value={v.tolerance}
         min="0"
         max="48"
         step="1"
-        hint="Funde los tonos casi idénticos del ruido de compresión."
+        onHover={() => setHint(HINTS.tolerance)}
         onChange={set("tolerance")}
       />
 
       <Toggle
         label="Quitar cuadrícula de transparencia"
+        hint={HINTS.removeChecker}
         note="damero blanco/gris"
         checked={v.removeChecker}
+        onHover={() => setHint(HINTS.removeChecker)}
         onChange={set("removeChecker")}
-        hint="Devuelve a transparente el damero que se queda pegado al capturar la pantalla de un editor."
+      />
+
+      <ButtonGroup
+        label="Contorno"
+        hint={HINTS.fit}
+        value={v.fit}
+        options={FIT_OPTIONS}
+        onHover={(hintText) => setHint(hintText || HINTS.fit)}
+        onChange={(fit, opts) => onChange(fitPatch(fit), opts)}
       />
 
       <Advanced>
         <Range
-          label="Umbral de alfa"
+          label="Umbral alfa"
+          hint={HINTS.alpha}
           value={v.alpha}
           min="0"
           max="255"
           step="1"
-          hint="Por debajo, el píxel se considera transparente."
+          onHover={() => setHint(HINTS.alpha)}
           onChange={set("alpha")}
         />
 
-        <Field label="Tamaño de píxel" hint="Unidades SVG por píxel del dibujo.">
+        <Range
+          label="Desviación máx"
+          hint={HINTS.fitTolerance}
+          suffix="px"
+          value={v.fitTolerance}
+          min="0.25"
+          max="3"
+          step="0.05"
+          hidden={!(v.fit in FIT_TOLERANCE)}
+          onHover={() => setHint(HINTS.fitTolerance)}
+          onChange={set("fitTolerance")}
+        />
+
+        <Field
+          label="Tamaño de píxel"
+          hint={HINTS.pixelSize}
+          onHover={() => setHint(HINTS.pixelSize)}
+        >
           <Row>
             <Check checked={v.autoPixel} onChange={set("autoPixel")} />
             <RowLabel>tamaño original</RowLabel>
@@ -88,7 +137,8 @@ export function PixelartPanel({ hidden, values: v, onChange, actions }) {
 
         <Field
           label="Fondo"
-          hint="Sin marcar, el SVG queda con fondo transparente."
+          hint={HINTS.background}
+          onHover={() => setHint(HINTS.background)}
         >
           <Row>
             <Check checked={v.useBackground} onChange={set("useBackground")} />
@@ -102,48 +152,22 @@ export function PixelartPanel({ hidden, values: v, onChange, actions }) {
 
         <Toggle
           label="Quitar el fondo"
+          hint={HINTS.removeBackground}
           note="y recortar al dibujo"
           checked={v.removeBackground}
+          onHover={() => setHint(HINTS.removeBackground)}
           onChange={set("removeBackground")}
-          hint="Vacía el color liso que rodea al dibujo y ajusta el lienzo a lo que queda. El mismo color encerrado dentro se conserva."
         />
 
         <Toggle
           label="Un path por color"
+          hint={HINTS.mergeColors}
           note="en vez de por bloque"
           checked={v.mergeColors}
+          onHover={() => setHint(HINTS.mergeColors)}
           onChange={set("mergeColors")}
-          hint="Ocupa menos, pero cada figura del SVG pasa a ser todo lo que comparte color, esté donde esté."
-        />
-
-        <Select
-          label="Contorno"
-          value={v.fit}
-          options={FIT_OPTIONS}
-          onChange={(fit, opts) => onChange(fitPatch(fit), opts)}
-          hint={
-            <>
-              En pixel art la escalera <em>es</em> el dibujo, así que lo normal
-              es dejarla. El polígono endereza las diagonales, que aquí son
-              escalones a propósito, y las curvas redondean el sprite entero.
-            </>
-          }
-        />
-
-        <Range
-          label="Desviación máxima"
-          suffix="px"
-          value={v.fitTolerance}
-          min="0.25"
-          max="3"
-          step="0.05"
-          hidden={!(v.fit in FIT_TOLERANCE)}
-          hint="Cuánto puede apartarse la línea del contorno original."
-          onChange={set("fitTolerance")}
         />
       </Advanced>
-
-      <Actions {...actions} />
     </aside>
   );
 }

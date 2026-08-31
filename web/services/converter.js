@@ -33,6 +33,8 @@ export const progress = signal(null);
 export const pending = signal(false);
 /** Se está decodificando y leyendo la imagen, antes de que haya nada que pintar. */
 export const decoding = signal(false);
+/** Explicación del control sobre el que está el ratón o el foco. */
+export const activeHint = signal("");
 
 let worker = null;
 

@@ -1,10 +1,5 @@
 // Los controles sueltos. Todos son controlados: el valor entra por `value` y
 // sale por `onChange`, y ninguno guarda nada.
-//
-// Quién rebota y quién no es una propiedad del **tipo** de control, no del
-// ajuste: un deslizador manda decenas de valores mientras se arrastra y una
-// casilla manda uno. Por eso `continuous` viaja con el cambio, y el modo de
-// arriba no tiene que acordarse ajuste por ajuste.
 
 import { Field, Row, RowLabel } from "./Field.jsx";
 
@@ -43,8 +38,9 @@ export function ColorInput({ value, disabled, onChange }) {
 }
 
 /**
- * Deslizador con su cifra en vivo dentro del título. `suffix` es para la
- * desviación, que se lee «Desviación máxima 0.75 px».
+ * Deslizador con su cifra en vivo.
+ * `vertical` activa el diseño vertical tipo ecualizador en fila.
+ * `hasAuto` permite incluir una casilla de automático integrada.
  */
 export function Range({
   label,
@@ -56,17 +52,42 @@ export function Range({
   hidden,
   suffix,
   onChange,
+  onHover,
+  hasAuto = false,
+  autoChecked = false,
+  onAutoChange,
+  disabled = false,
 }) {
+  const isInactive = disabled || autoChecked;
+
   return (
     <Field
       label={
-        <>
-          {label} <b>{value}</b>
-          {suffix ? ` ${suffix}` : null}
-        </>
+        <span class="range-label-row">
+          <span class="range-label-title">{label}</span>
+          {hasAuto ? (
+            <label class="auto-inline-check" title="Ajuste automático según imagen">
+              <Check checked={autoChecked} onChange={onAutoChange} />
+              <span>auto</span>
+            </label>
+          ) : (
+            <span class="auto-placeholder" />
+          )}
+          <span class="range-label-value">
+            {!autoChecked ? (
+              <b>
+                {value}
+                {suffix ? ` ${suffix}` : ""}
+              </b>
+            ) : (
+              <b class="auto-active-badge">auto</b>
+            )}
+          </span>
+        </span>
       }
       hint={hint}
       hidden={hidden}
+      onHover={onHover}
     >
       <input
         type="range"
@@ -74,6 +95,7 @@ export function Range({
         max={max}
         step={step}
         value={value}
+        disabled={isInactive}
         onInput={(e) =>
           onChange(Number(e.currentTarget.value), { continuous: true })
         }
@@ -82,9 +104,9 @@ export function Range({
   );
 }
 
-export function Select({ label, value, hint, options, onChange }) {
+export function Select({ label, value, hint, options, onChange, onHover }) {
   return (
-    <Field label={label} hint={hint}>
+    <Field label={label} hint={hint} onHover={onHover}>
       <select
         value={value}
         onChange={(e) => onChange(e.currentTarget.value, { continuous: false })}
@@ -99,10 +121,37 @@ export function Select({ label, value, hint, options, onChange }) {
   );
 }
 
-/** Casilla con una etiqueta al lado, sin nada que habilitar. */
-export function Toggle({ label, note, hint, checked, onChange }) {
+/**
+ * Grupo de botones segmentados. Cada botón activa su propio hint al pasar el ratón.
+ */
+export function ButtonGroup({ label, value, hint, options, onChange, onHover }) {
   return (
-    <Field label={label} hint={hint}>
+    <Field label={label} hint={hint} onHover={onHover}>
+      <div class="segmented-group" role="group">
+        {options.map(({ value: v, label: text, hint: optionHint }) => {
+          const isActive = value === v;
+          return (
+            <button
+              key={v}
+              type="button"
+              class={`segmented-btn ${isActive ? "active" : ""}`}
+              onClick={() => onChange(v, { continuous: false })}
+              onMouseEnter={() => onHover?.(optionHint || hint)}
+              onFocusCapture={() => onHover?.(optionHint || hint)}
+            >
+              {text}
+            </button>
+          );
+        })}
+      </div>
+    </Field>
+  );
+}
+
+/** Casilla con una etiqueta al lado, sin nada que habilitar. */
+export function Toggle({ label, note, hint, checked, onChange, onHover }) {
+  return (
+    <Field label={label} hint={hint} onHover={onHover}>
       <Row>
         <Check checked={checked} onChange={onChange} />
         <RowLabel>{note}</RowLabel>
