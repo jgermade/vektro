@@ -28,6 +28,106 @@ export function App() {
     document.body.dataset.mode = mode;
   }, [mode]);
 
+  // Controla la altura pegajosa de la ayuda y la selección del control enfocado en móvil
+  useEffect(() => {
+    if (!active) return;
+
+    let rAF = null;
+    let resizeObs = null;
+
+    const resultElem = document.querySelector(".workspace-item-result");
+
+    const updateStickyHeight = () => {
+      const el = document.querySelector(".workspace-item-result");
+      if (el) {
+        document.documentElement.style.setProperty("--result-sticky-height", `${el.offsetHeight}px`);
+      }
+    };
+
+    updateStickyHeight();
+
+    const updateFocusedField = () => {
+      updateStickyHeight();
+
+      const isMobile = window.innerWidth <= 860;
+      if (!isMobile) {
+        document.querySelectorAll(".is-focused-field").forEach((el) => el.classList.remove("is-focused-field"));
+        return;
+      }
+
+      const resElem = document.querySelector(".workspace-item-result");
+      let resultHeight = resElem ? resElem.offsetHeight : 200;
+
+      // Umbral exacto: 7rem por debajo de la parte superior del hint (que es resultHeight)
+      const fontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+      const thresholdY = resultHeight + fontSize * 12;
+
+      const fields = Array.from(
+        document.querySelectorAll(".field[data-hint], .toggle-card[data-hint]")
+      ).filter(
+        (el) => el.offsetParent !== null && !el.hasAttribute("hidden") && el.closest("[hidden]") === null
+      );
+
+      if (!fields.length) return;
+
+      // Seleccionar el ÚLTIMO control cuya parte superior haya pasado thresholdY (rect.top <= thresholdY)
+      let closest = null;
+      for (let i = 0; i < fields.length; i++) {
+        const field = fields[i];
+        const rect = field.getBoundingClientRect();
+        if (rect.top <= thresholdY) {
+          closest = field;
+        }
+      }
+
+      fields.forEach((f) => {
+        if (f === closest) {
+          f.classList.add("is-focused-field");
+        } else {
+          f.classList.remove("is-focused-field");
+        }
+      });
+
+      if (closest) {
+        const hintText = closest.getAttribute("data-hint");
+        if (hintText && converter.activeHint.value !== hintText) {
+          converter.activeHint.value = hintText;
+        }
+      }
+    };
+
+    const onScroll = () => {
+      if (!rAF) {
+        rAF = requestAnimationFrame(() => {
+          rAF = null;
+          updateFocusedField();
+        });
+      }
+    };
+
+    if (resultElem && typeof ResizeObserver !== "undefined") {
+      resizeObs = new ResizeObserver(() => {
+        updateStickyHeight();
+        updateFocusedField();
+      });
+      resizeObs.observe(resultElem);
+    }
+
+    // Inicialmente no hay nada destacado
+    document.querySelectorAll(".is-focused-field").forEach((el) => el.classList.remove("is-focused-field"));
+
+    window.addEventListener("scroll", onScroll, { passive: true, capture: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+
+    return () => {
+      if (rAF) cancelAnimationFrame(rAF);
+      if (resizeObs) resizeObs.disconnect();
+      document.querySelectorAll(".is-focused-field").forEach((el) => el.classList.remove("is-focused-field"));
+      window.removeEventListener("scroll", onScroll, { capture: true });
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [active, mode]);
+
   /** Convierte con los ajustes de un modo. Un solo sitio que arma opciones. */
   function convert(which, values, { debounce = false } = {}) {
     converter.convert(which, MODES[which].options(values), { debounce });
@@ -216,11 +316,11 @@ export function App() {
                 <div class="workspace-item-result">
                   <ResultPane />
                 </div>
-                <div class="workspace-item-hint">
-                  <ResultHintCard />
-                </div>
                 <div class="workspace-item-stats">
                   <ResultStats />
+                </div>
+                <div class="workspace-item-hint">
+                  <ResultHintCard />
                 </div>
               </div>
             </>

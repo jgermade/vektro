@@ -5,9 +5,12 @@ export function Field({ label, hint, hidden, onHover, children }) {
   return (
     <label
       class="field"
+      data-hint={hint || undefined}
       hidden={hidden}
       onMouseEnter={() => onHover?.(hint)}
       onFocusCapture={() => onHover?.(hint)}
+      onClick={() => onHover?.(hint)}
+      onTouchStart={() => onHover?.(hint)}
     >
       <span>{label}</span>
       {children}

@@ -64,14 +64,16 @@ export function Range({
     <Field
       label={
         <span class="range-label-row">
-          <span>{label}</span>
-          <span class="range-label-right">
-            {hasAuto ? (
-              <label class="auto-inline-check" title="Ajuste automático según imagen">
-                <Check checked={autoChecked} onChange={onAutoChange} />
-                <span>auto</span>
-              </label>
-            ) : null}
+          <span class="range-label-title">{label}</span>
+          {hasAuto ? (
+            <label class="auto-inline-check" title="Ajuste automático según imagen">
+              <Check checked={autoChecked} onChange={onAutoChange} />
+              <span>auto</span>
+            </label>
+          ) : (
+            <span class="auto-placeholder" />
+          )}
+          <span class="range-label-value">
             {!autoChecked ? (
               <b>
                 {value}

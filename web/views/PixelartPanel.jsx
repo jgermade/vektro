@@ -43,6 +43,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
     >
       <Field
         label="Escala de la rejilla"
+        hint={HINTS.scale}
         onHover={() => setHint(HINTS.scale)}
       >
         <Row>
@@ -64,6 +65,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
       <Range
         label="Tolerancia de color"
+        hint={HINTS.tolerance}
         value={v.tolerance}
         min="0"
         max="48"
@@ -74,6 +76,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
       <Toggle
         label="Quitar cuadrícula de transparencia"
+        hint={HINTS.removeChecker}
         note="damero blanco/gris"
         checked={v.removeChecker}
         onHover={() => setHint(HINTS.removeChecker)}
@@ -82,6 +85,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
       <ButtonGroup
         label="Contorno"
+        hint={HINTS.fit}
         value={v.fit}
         options={FIT_OPTIONS}
         onHover={(hintText) => setHint(hintText || HINTS.fit)}
@@ -91,6 +95,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
       <Advanced>
         <Range
           label="Umbral alfa"
+          hint={HINTS.alpha}
           value={v.alpha}
           min="0"
           max="255"
@@ -101,6 +106,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
         <Range
           label="Desviación máx"
+          hint={HINTS.fitTolerance}
           suffix="px"
           value={v.fitTolerance}
           min="0.25"
@@ -113,6 +119,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
         <Field
           label="Tamaño de píxel"
+          hint={HINTS.pixelSize}
           onHover={() => setHint(HINTS.pixelSize)}
         >
           <Row>
@@ -130,6 +137,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
         <Field
           label="Fondo"
+          hint={HINTS.background}
           onHover={() => setHint(HINTS.background)}
         >
           <Row>
@@ -144,6 +152,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
         <Toggle
           label="Quitar el fondo"
+          hint={HINTS.removeBackground}
           note="y recortar al dibujo"
           checked={v.removeBackground}
           onHover={() => setHint(HINTS.removeBackground)}
@@ -152,6 +161,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
         <Toggle
           label="Un path por color"
+          hint={HINTS.mergeColors}
           note="en vez de por bloque"
           checked={v.mergeColors}
           onHover={() => setHint(HINTS.mergeColors)}

@@ -385,10 +385,9 @@ kbd {
     order: 2;
     position: sticky;
     top: 0;
-    z-index: 25;
+    z-index: 35;
     margin-left: -1.25rem;
     margin-right: -1.25rem;
-    margin-bottom: 1.5rem;
   }
 
   .workspace-item-result .result-pane {
@@ -396,45 +395,38 @@ kbd {
     border-left: none;
     border-right: none;
     border-top: none;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-  }
-
-  .workspace-item-controls {
-    order: 3;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
   }
 
   .workspace-item-hint {
+    order: 3;
+    position: sticky;
+    top: var(--result-sticky-height, 220px);
+    z-index: 30;
+    margin-left: -1.25rem;
+    margin-right: -1.25rem;
+  }
+
+  .workspace-item-hint .result-hint-card {
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+    background: var(--surface);
+  }
+
+  .field.is-focused-field,
+  .toggle-card.is-focused-field {
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  }
+
+  .workspace-item-controls {
     order: 4;
+    margin-top: 5rem;
   }
 
   .workspace-item-stats {
     order: 5;
-  }
-
-  main {
-    padding-bottom: 2rem;
-  }
-
-  main.has-active ~ footer {
-    margin-bottom: 4rem;
-  }
-
-  .result-footer-box {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 100;
-    margin: 0;
-    background: var(--surface);
-    padding: 0.75rem 1.25rem;
-    border-top: 1px solid var(--border);
-    border-radius: 0;
-    box-shadow: 0 -4px 18px rgba(0, 0, 0, 0.22);
-  }
-
-  .result-actions {
-    gap: 0.85rem;
   }
 }
 
@@ -451,10 +443,14 @@ kbd {
 
 .field {
   display: block;
-  margin-bottom: 0.75rem;
-  padding: 0;
+  margin-bottom: 0.5rem;
+  padding: 0.65rem 0.85rem;
+  margin-left: -0.85rem;
+  margin-right: -0.85rem;
+  width: calc(100% + 1.7rem);
+  border-radius: var(--radius-sm, 6px);
   box-sizing: border-box;
-  width: 100%;
+  transition: background 0.15s ease;
 }
 
 .field > span {
@@ -465,16 +461,27 @@ kbd {
 }
 
 .range-label-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto minmax(4.2rem, auto);
   align-items: center;
-  justify-content: space-between;
+  gap: 0.6rem;
   width: 100%;
 }
 
-.range-label-right {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
+.range-label-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.range-label-value {
+  text-align: right;
+  min-width: 4.2rem;
+  display: inline-block;
+}
+
+.auto-placeholder {
+  display: inline-block;
 }
 
 .auto-inline-check {

@@ -48,6 +48,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
     >
       <Range
         label="Simplificación"
+        hint={HINTS.simplify}
         value={v.simplify}
         min="2"
         max="15"
@@ -61,6 +62,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
       <Range
         label="Tolerancia color"
+        hint={HINTS.tolerance}
         value={v.tolerance}
         min="0.01"
         max="0.2"
@@ -71,6 +73,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
       <Range
         label="Filtro motas"
+        hint={HINTS.filterSpeckle}
         value={v.filterSpeckle}
         min="0"
         max="64"
@@ -84,6 +87,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
       <Range
         label="Escalón degradado"
+        hint={HINTS.gradientStep}
         value={v.gradientStep}
         min="0"
         max="0.2"
@@ -94,6 +98,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
       <Range
         label="Desviación máxima"
+        hint={HINTS.fitTolerance}
         suffix="px"
         value={v.fitTolerance}
         min="0.25"
@@ -106,6 +111,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
       <Range
         label="Limar temblor"
+        hint={HINTS.relax}
         suffix="px"
         value={v.relax}
         min="0"
@@ -117,6 +123,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
       <ButtonGroup
         label="Contorno"
+        hint={HINTS.fit}
         value={v.fit}
         options={FIT_OPTIONS}
         onHover={(hintText) => setHint(hintText || HINTS.fit)}
@@ -126,8 +133,11 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
       <div class="toggles-row">
         <label
           class="toggle-card"
+          data-hint={HINTS.subpixel}
           onMouseEnter={() => setHint(HINTS.subpixel)}
           onFocusCapture={() => setHint(HINTS.subpixel)}
+          onClick={() => setHint(HINTS.subpixel)}
+          onTouchStart={() => setHint(HINTS.subpixel)}
         >
           <Check checked={v.subpixel} onChange={set("subpixel")} />
           <span>Subpíxel</span>
@@ -135,8 +145,11 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
         <label
           class="toggle-card"
+          data-hint={HINTS.ramps}
           onMouseEnter={() => setHint(HINTS.ramps)}
           onFocusCapture={() => setHint(HINTS.ramps)}
+          onClick={() => setHint(HINTS.ramps)}
+          onTouchStart={() => setHint(HINTS.ramps)}
         >
           <Check checked={v.ramps} onChange={set("ramps")} />
           <span>Degradados</span>
@@ -144,8 +157,11 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
         <label
           class="toggle-card"
+          data-hint={HINTS.removeBackground}
           onMouseEnter={() => setHint(HINTS.removeBackground)}
           onFocusCapture={() => setHint(HINTS.removeBackground)}
+          onClick={() => setHint(HINTS.removeBackground)}
+          onTouchStart={() => setHint(HINTS.removeBackground)}
         >
           <Check checked={v.removeBackground} onChange={set("removeBackground")} />
           <span>Quitar fondo</span>
@@ -155,6 +171,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
       <Advanced>
         <Range
           label="Mínimo color"
+          hint={HINTS.minColorShare}
           suffix="%"
           value={v.minColorShare}
           min="0"
@@ -166,6 +183,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
         <Range
           label="Grosor mín"
+          hint={HINTS.minThickness}
           value={v.minThickness}
           min="0"
           max="3"
@@ -179,6 +197,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
         <Range
           label="Precisión color"
+          hint={HINTS.colorPrecision}
           value={v.colorPrecision}
           min="2"
           max="8"
@@ -189,6 +208,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
         <Range
           label="Umbral alfa"
+          hint={HINTS.alpha}
           value={v.alpha}
           min="0"
           max="255"
@@ -199,6 +219,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
         <Field
           label="Máximo de colores"
+          hint={HINTS.maxColors}
           onHover={() => setHint(HINTS.maxColors)}
         >
           <Row>
@@ -215,6 +236,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
         <Field
           label="Fondo"
+          hint={HINTS.background}
           onHover={() => setHint(HINTS.background)}
         >
           <Row>
