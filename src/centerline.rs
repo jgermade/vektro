@@ -44,13 +44,12 @@ pub fn extract_centerline(points: &[Pt]) -> Option<(Vec<Pt>, f64)> {
     let num_samples = n / 2;
     for i in 0..num_samples {
         let p1 = points[i];
-        
+
         // Buscar el punto opuesto más cercano alrededor de la mitad opuesta del bucle
         let mut min_d = f64::INFINITY;
         let mut best_pt = points[(i + num_samples) % n];
 
-        for j in num_samples..n {
-            let p2 = points[j];
+        for &p2 in &points[num_samples..] {
             let d = dist(p1, p2);
             if d < min_d {
                 min_d = d;
@@ -92,8 +91,16 @@ mod tests {
     fn test_extract_centerline() {
         // Muestreo de una cinta rectangular de 10x1 (largo 10, grosor 1)
         let pts = vec![
-            (0.0, 0.0), (2.5, 0.0), (5.0, 0.0), (7.5, 0.0), (10.0, 0.0),
-            (10.0, 1.0), (7.5, 1.0), (5.0, 1.0), (2.5, 1.0), (0.0, 1.0),
+            (0.0, 0.0),
+            (2.5, 0.0),
+            (5.0, 0.0),
+            (7.5, 0.0),
+            (10.0, 0.0),
+            (10.0, 1.0),
+            (7.5, 1.0),
+            (5.0, 1.0),
+            (2.5, 1.0),
+            (0.0, 1.0),
         ];
         let res = extract_centerline(&pts);
         assert!(res.is_some());

@@ -238,11 +238,7 @@ fn fit(pts: &[Pt], t0: Pt, t1: Pt, tolerance: f64) -> Vec<Seg> {
 
         // Partir por el punto de corte. Si es por exceso de giro, se parte por
         // el centro para equilibrar el ángulo de las dos curvas; si es por error, por el peor punto.
-        let cut_idx = if turn > MAX_TURN {
-            (b - a) / 2
-        } else {
-            worst
-        };
+        let cut_idx = if turn > MAX_TURN { (b - a) / 2 } else { worst };
         let k = a + cut_idx.clamp(1, b - a - 1);
         let t = center(pts, k);
         stack.push((k, b, t, tb));

@@ -21,9 +21,9 @@
 //! ```
 
 pub mod background;
-pub mod centerline;
 #[cfg(feature = "illustration")]
 pub mod boundary;
+pub mod centerline;
 pub mod checker;
 #[cfg(feature = "illustration")]
 pub mod cluster;

@@ -315,7 +315,9 @@ impl Default for ClusterOptions {
 /// Evalúa automáticamente el filtro de motas según la escala de trabajo `scale`.
 pub fn auto_speckle(scale: f64) -> usize {
     let s = scale.max(1.0);
-    ((crate::resample::FEATURE * crate::resample::FEATURE) * s).round().clamp(4.0, 8.0) as usize
+    ((crate::resample::FEATURE * crate::resample::FEATURE) * s)
+        .round()
+        .clamp(4.0, 8.0) as usize
 }
 
 /// Evalúa automáticamente el grosor mínimo según la escala y la presencia de trazos finos.
