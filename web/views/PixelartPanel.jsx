@@ -1,4 +1,3 @@
-import { useState } from "preact/hooks";
 import { Field, Row, RowLabel } from "../components/Field.jsx";
 import {
   ButtonGroup,
@@ -10,10 +9,9 @@ import {
 } from "../components/inputs.jsx";
 import { Advanced } from "../components/Advanced.jsx";
 import { FIT_OPTIONS, FIT_TOLERANCE, fitPatch } from "./modes.jsx";
+import * as converter from "../services/converter.js";
 
 export function PixelartPanel({ hidden, values: v, onChange }) {
-  const [rangeHint, setRangeHint] = useState(null);
-  const [activeHint, setActiveHint] = useState(null);
   const set = (key) => (value, opts) => onChange({ [key]: value }, opts);
 
   const HINTS = {
@@ -29,6 +27,12 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
     fitTolerance: "Cuánto puede apartarse la línea del contorno original.",
   };
 
+  const setHint = (text) => {
+    if (text) {
+      converter.activeHint.value = text;
+    }
+  };
+
   return (
     <aside
       class="controls"
@@ -39,7 +43,8 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
     >
       <Field
         label="Escala de la rejilla"
-        onHover={() => setActiveHint(HINTS.scale)}
+        hint={HINTS.scale}
+        onHover={() => setHint(HINTS.scale)}
       >
         <Row>
           <Check checked={v.autoScale} onChange={set("autoScale")} />
@@ -60,75 +65,62 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
       <Range
         label="Tolerancia de color"
+        hint={HINTS.tolerance}
         value={v.tolerance}
         min="0"
         max="48"
         step="1"
-        onHover={() => setActiveHint(HINTS.tolerance)}
+        onHover={() => setHint(HINTS.tolerance)}
         onChange={set("tolerance")}
       />
 
       <Toggle
         label="Quitar cuadrícula de transparencia"
+        hint={HINTS.removeChecker}
         note="damero blanco/gris"
         checked={v.removeChecker}
-        onHover={() => setActiveHint(HINTS.removeChecker)}
+        onHover={() => setHint(HINTS.removeChecker)}
         onChange={set("removeChecker")}
       />
 
       <ButtonGroup
         label="Contorno"
+        hint={HINTS.fit}
         value={v.fit}
         options={FIT_OPTIONS}
-        onHover={(hintText) => setActiveHint(hintText || HINTS.fit)}
+        onHover={(hintText) => setHint(hintText || HINTS.fit)}
         onChange={(fit, opts) => onChange(fitPatch(fit), opts)}
       />
 
-      <div class="active-hint-card">
-        <span class="hint-icon">💡</span>
-        <div class="hint-content">
-          {activeHint || "Pasa el ratón o pulsa sobre cualquier opción para ver su explicación detallada."}
-        </div>
-      </div>
-
       <Advanced>
-        <div class="vertical-sliders-box">
-          <div class="vertical-sliders-row cols-2">
-            <Range
-              label="Umbral alfa"
-              value={v.alpha}
-              min="0"
-              max="255"
-              step="1"
-              vertical
-              onHover={() => setRangeHint(HINTS.alpha)}
-              onChange={set("alpha")}
-            />
+        <Range
+          label="Umbral alfa"
+          hint={HINTS.alpha}
+          value={v.alpha}
+          min="0"
+          max="255"
+          step="1"
+          onHover={() => setHint(HINTS.alpha)}
+          onChange={set("alpha")}
+        />
 
-            <Range
-              label="Desviación máx"
-              suffix="px"
-              value={v.fitTolerance}
-              min="0.25"
-              max="3"
-              step="0.05"
-              vertical
-              hidden={!(v.fit in FIT_TOLERANCE)}
-              onHover={() => setRangeHint(HINTS.fitTolerance)}
-              onChange={set("fitTolerance")}
-            />
-          </div>
-          <div class="range-hint-card">
-            <span class="hint-icon">🎛️</span>
-            <div class="hint-content">
-              {rangeHint || "Pasa el ratón sobre un potenciómetro avanzado para ver su explicación."}
-            </div>
-          </div>
-        </div>
+        <Range
+          label="Desviación máx"
+          hint={HINTS.fitTolerance}
+          suffix="px"
+          value={v.fitTolerance}
+          min="0.25"
+          max="3"
+          step="0.05"
+          hidden={!(v.fit in FIT_TOLERANCE)}
+          onHover={() => setHint(HINTS.fitTolerance)}
+          onChange={set("fitTolerance")}
+        />
 
         <Field
           label="Tamaño de píxel"
-          onHover={() => setActiveHint(HINTS.pixelSize)}
+          hint={HINTS.pixelSize}
+          onHover={() => setHint(HINTS.pixelSize)}
         >
           <Row>
             <Check checked={v.autoPixel} onChange={set("autoPixel")} />
@@ -145,7 +137,8 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
         <Field
           label="Fondo"
-          onHover={() => setActiveHint(HINTS.background)}
+          hint={HINTS.background}
+          onHover={() => setHint(HINTS.background)}
         >
           <Row>
             <Check checked={v.useBackground} onChange={set("useBackground")} />
@@ -159,17 +152,19 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
         <Toggle
           label="Quitar el fondo"
+          hint={HINTS.removeBackground}
           note="y recortar al dibujo"
           checked={v.removeBackground}
-          onHover={() => setActiveHint(HINTS.removeBackground)}
+          onHover={() => setHint(HINTS.removeBackground)}
           onChange={set("removeBackground")}
         />
 
         <Toggle
           label="Un path por color"
+          hint={HINTS.mergeColors}
           note="en vez de por bloque"
           checked={v.mergeColors}
-          onHover={() => setActiveHint(HINTS.mergeColors)}
+          onHover={() => setHint(HINTS.mergeColors)}
           onChange={set("mergeColors")}
         />
       </Advanced>
