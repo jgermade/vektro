@@ -359,18 +359,22 @@ kbd {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
+  box-sizing: border-box;
 }
 
 .field {
   display: block;
-  margin-bottom: 1.15rem;
+  margin-bottom: 0.75rem;
+  padding: 0;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .field > span {
   display: block;
   margin-bottom: 0.4rem;
   font-weight: 500;
-  font-size: 0.92rem;
+  font-size: 0.9rem;
 }
 
 .field b {
@@ -380,12 +384,279 @@ kbd {
   font-weight: 500;
 }
 
-.field small {
-  display: block;
-  margin-top: 0.35rem;
-  color: var(--muted);
-  font-size: 0.79rem;
+.active-hint-card {
+  margin: 0.8rem 0 1.15rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--fg);
+  font-size: 0.82rem;
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-height: 64px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.active-hint-card .hint-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.active-hint-card .hint-content {
+  flex: 1;
+  color: var(--fg);
+}
+
+/* Fila de ecualizador con deslizadores en vertical */
+.vertical-sliders-box {
+  margin-bottom: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 0.4rem;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.vertical-sliders-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(55px, 1fr));
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
+  padding: 0.4rem 0.1rem;
+  background: transparent;
+  border: none;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.vertical-sliders-row.cols-6 {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.vertical-sliders-row.cols-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.vertical-sliders-row.cols-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.range-hint-card {
+  padding: 0.6rem 0.8rem;
+  border-top: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 0.8rem;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 64px;
+}
+
+.range-hint-card .hint-icon {
+  font-size: 1rem;
+}
+
+.range-hint-card .hint-content {
+  flex: 1;
+  color: var(--fg);
+  font-weight: 400;
+}
+
+.auto-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.4rem;
+  margin-bottom: 0.1rem;
+  padding-top: 0.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.auto-label {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.field-vertical {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 0.4rem 0.2rem;
+  margin: 0;
+  border-radius: 6px;
+  user-select: none;
+  cursor: pointer;
+}
+
+.field-vertical.is-disabled .vertical-slider {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.field-vertical:hover,
+.field-vertical:focus-within {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.field-vertical .field-title {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: var(--fg);
+  line-height: 1.2;
+  margin-bottom: 0.3rem;
+  height: 2.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vertical-range-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  height: auto;
+  margin: 0.3rem 0;
+}
+
+.step-btn {
+  width: 22px;
+  height: 20px;
+  padding: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--fg);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+
+.step-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.step-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.step-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.vertical-slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  height: 75px;
+  width: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.field-vertical .field-value {
+  float: none;
+  font-size: 0.78rem;
+  color: var(--accent);
+  margin-top: 0.2rem;
+}
+
+/* Segmented Button Group */
+.segmented-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.2rem;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.segmented-btn {
+  flex: 1;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.segmented-btn:hover {
+  color: var(--fg);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.segmented-btn.active {
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* Fila de casillas de verificación compactas */
+.toggles-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+  margin-top: 0.6rem;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.toggle-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.3rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.toggle-card:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.toggle-card span {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--fg);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .row {
@@ -730,7 +1001,107 @@ footer .icon-external {
   opacity: 0.75;
 }
 
-/* Overlay global de arrastrar y soltar */
+/* Header logo click reset */
+.top h1.clickable-logo {
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.top h1.clickable-logo:hover {
+  opacity: 0.85;
+}
+
+.top h1.clickable-logo:active {
+  transform: scale(0.98);
+}
+
+/* Contenedor de pie de resultado con altura constante de 44px */
+.result-footer-box {
+  margin-top: 0.85rem;
+  min-height: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.result-footer-box .progress-wrapper,
+.result-footer-box .result-actions {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.result-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.result-actions button.download-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  font-weight: 500;
+  font-size: 0.92rem;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.result-actions button.download-btn:hover {
+  opacity: 0.9;
+}
+
+.result-actions button.download-btn:active {
+  transform: scale(0.98);
+}
+
+.result-actions button.icon-only-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.15s ease;
+}
+
+.result-actions button.icon-only-btn:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.result-actions button.icon-only-btn:active {
+  transform: scale(0.95);
+}
+
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.text-success {
+  color: #10b981;
+}
 .drop-overlay {
   position: fixed;
   inset: 0;

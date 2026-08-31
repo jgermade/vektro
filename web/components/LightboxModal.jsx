@@ -3,9 +3,20 @@ import { useEffect, useRef, useState } from "preact/hooks";
 export function LightboxModal({ open, svg, meta, onClose, onDownload }) {
   const dialogRef = useRef(null);
   const [zoom, setZoom] = useState(1.0);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const panStartRef = useRef({ x: 0, y: 0 });
+
+  const resetZoomAndPan = () => {
+    setZoom(1.0);
+    setPan({ x: 0, y: 0 });
+    setIsDragging(false);
+  };
 
   const handleClose = () => {
-    setZoom(1.0);
+    resetZoomAndPan();
     onClose?.();
   };
 
@@ -14,12 +25,12 @@ export function LightboxModal({ open, svg, meta, onClose, onDownload }) {
     if (!dialog) return;
 
     if (open) {
-      setZoom(1.0);
+      resetZoomAndPan();
       if (!dialog.open) {
         dialog.showModal();
       }
     } else {
-      setZoom(1.0);
+      resetZoomAndPan();
       if (dialog.open) {
         dialog.close();
       }
@@ -40,12 +51,49 @@ export function LightboxModal({ open, svg, meta, onClose, onDownload }) {
   const handleWheel = (e) => {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.15 : 0.87;
-    setZoom((prev) => Math.min(5.0, Math.max(0.5, prev * factor)));
+    setZoom((prev) => {
+      const next = Math.min(5.0, Math.max(0.5, prev * factor));
+      if (next === 1.0) {
+        setPan({ x: 0, y: 0 });
+      }
+      return next;
+    });
   };
 
   const zoomIn = () => setZoom((prev) => Math.min(5.0, prev * 1.25));
-  const zoomOut = () => setZoom((prev) => Math.max(0.5, prev / 1.25));
-  const zoomReset = () => setZoom(1.0);
+  const zoomOut = () => {
+    setZoom((prev) => {
+      const next = Math.max(0.5, prev / 1.25);
+      if (next === 1.0) setPan({ x: 0, y: 0 });
+      return next;
+    });
+  };
+  const zoomReset = () => {
+    setZoom(1.0);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const handleMouseDown = (e) => {
+    // Si el clic no fue en un botón, iniciar arrastre
+    if (e.target.closest("button")) return;
+    setIsDragging(true);
+    dragStartRef.current = { x: e.clientX, y: e.clientY };
+    panStartRef.current = { ...pan };
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    setPan({
+      x: panStartRef.current.x + dx,
+      y: panStartRef.current.y + dy,
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
 
   if (!open) return null;
 
@@ -116,13 +164,23 @@ export function LightboxModal({ open, svg, meta, onClose, onDownload }) {
           </div>
         </header>
 
-        <main class="lightbox-body" onWheel={handleWheel}>
+        <main
+          class="lightbox-body"
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          style={{
+            cursor: isDragging ? "grabbing" : zoom > 1.0 ? "grab" : "default",
+          }}
+        >
           <div
             class="lightbox-svg-wrapper checker"
             style={{
-              transform: `scale(${zoom})`,
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
               transformOrigin: "center center",
-              transition: zoom === 1.0 ? "none" : "transform 0.08s ease-out",
+              transition: isDragging || zoom === 1.0 ? "none" : "transform 0.08s ease-out",
             }}
             dangerouslySetInnerHTML={{ __html: svg }}
           />

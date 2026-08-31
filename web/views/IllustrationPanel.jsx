@@ -1,18 +1,40 @@
-import { Field, Row, RowLabel } from "../components/Field.jsx";
+import { useState } from "preact/hooks";
+import { Field, Row } from "../components/Field.jsx";
 import {
+  ButtonGroup,
   Check,
   ColorInput,
   NumberInput,
   Range,
-  Select,
-  Toggle,
 } from "../components/inputs.jsx";
 import { Advanced } from "../components/Advanced.jsx";
-import { Actions } from "../components/Actions.jsx";
 import { FIT_OPTIONS, FIT_TOLERANCE, fitPatch } from "./modes.jsx";
 
-export function IllustrationPanel({ hidden, values: v, onChange, actions }) {
+export function IllustrationPanel({ hidden, values: v, onChange }) {
+  const [rangeHint, setRangeHint] = useState(null);
+  const [advRangeHint, setAdvRangeHint] = useState(null);
+  const [generalHint, setGeneralHint] = useState(null);
+
   const set = (key) => (value, opts) => onChange({ [key]: value }, opts);
+
+  const HINTS = {
+    simplify: "El rasgo más pequeño que sobrevive, en tantos por mil del lado largo. Decide a qué resolución se reinterpreta el dibujo (sube escala en imágenes pequeñas y baja en grandes).",
+    tolerance: "Distancia máxima entre un color y el de la región que lo pinta, en una escala perceptual donde de negro a blanco hay 1.",
+    filterSpeckle: "Área de región que se funde con su vecina. En automático se ajusta dinámicamente según la resolución del lienzo. Subirlo limpia el ruido JPEG.",
+    gradientStep: "Ensancha las bandas de un cielo fundiendo tonos que sólo se distinguen en luz. En un dibujo con volumen aplana el sombreado.",
+    fit: "El polígono junta en un tramo recto los escalones que no dibujan nada. Las curvas no comprimen (salen más grandes), pero el contorno sigue siendo liso por mucho que se amplíe.",
+    fitTolerance: "Cuánto puede apartarse la línea del contorno del dibujo original.",
+    subpixel: "El color de los píxeles del borde recoloca los vértices fuera de la retícula entera.",
+    relax: "Lima los peldaños irregulares moviendo vértices sin tocar las esquinas. A 0, el contorno tal cual sale del trazado.",
+    ramps: "Funde las bandas de color en figuras con degradado lineal.",
+    removeBackground: "Vacía lo que toca el borde de la imagen. El mismo color encerrado dentro se conserva.",
+    minColorShare: "Lo que un color tiene que valer para llevarse una entrada de la paleta.",
+    minThickness: "Quita las bandas de un píxel que bordean cada frontera de color. En automático se ajusta según la presencia de líneas finas de dibujo.",
+    colorPrecision: "Bits por canal antes de agrupar; baja el ruido del último bit.",
+    maxColors: "Con tope, los colores que sobran van al más cercano aunque quede lejos.",
+    alpha: "Por debajo, el píxel se considera transparente.",
+    background: "Sin marcar, el SVG queda con fondo transparente.",
+  };
 
   return (
     <aside
@@ -22,166 +44,197 @@ export function IllustrationPanel({ hidden, values: v, onChange, actions }) {
       aria-labelledby="tab-illustration"
       hidden={hidden}
     >
-      <Field
-        label="Simplificación"
-        hint="El rasgo más pequeño que sobrevive, en tantos por mil del lado largo. Es lo que decide a qué resolución se reinterpreta el dibujo: en una imagen pequeña sube de escala, que es lo que recupera el borde escrito en el antialias, y en una grande baja, que es lo que promedia el grano. Subirlo simplifica."
-      >
-        <Row>
-          <Check checked={v.autoSimplify} onChange={set("autoSimplify")} />
-          <RowLabel>automática</RowLabel>
-        </Row>
-        <input
-          type="range"
-          min="2"
-          max="15"
-          step="0.5"
-          value={v.simplify}
-          disabled={v.autoSimplify}
-          onInput={(e) =>
-            onChange({ simplify: Number(e.currentTarget.value) }, {
-              continuous: true,
-            })
-          }
-        />
-      </Field>
+      <div class="vertical-sliders-box">
+        <div class="vertical-sliders-row cols-6">
+          <Range
+            label="Simplificación"
+            value={v.simplify}
+            min="2"
+            max="15"
+            step="0.5"
+            vertical
+            hasAuto
+            autoChecked={v.autoSimplify}
+            onAutoChange={set("autoSimplify")}
+            onHover={() => setRangeHint(HINTS.simplify)}
+            onChange={set("simplify")}
+          />
 
-      <Range
-        label="Tolerancia de color"
-        value={v.tolerance}
-        min="0.01"
-        max="0.2"
-        step="0.005"
-        hint="Distancia máxima entre un color y el de la región que lo pinta, en una escala perceptual donde de negro a blanco hay 1."
-        onChange={set("tolerance")}
-      />
+          <Range
+            label="Tolerancia color"
+            value={v.tolerance}
+            min="0.01"
+            max="0.2"
+            step="0.005"
+            vertical
+            onHover={() => setRangeHint(HINTS.tolerance)}
+            onChange={set("tolerance")}
+          />
 
-      <Range
-        label="Regularizar la paleta"
-        suffix="pasadas"
-        value={v.smoothing}
-        min="0"
-        max="6"
-        step="1"
-        hint="La paleta decide color a color, sin mirar alrededor, así que el grano de una foto rompe en motas lo que se ve liso. Esto lo deshace pesando el parecido de color contra el acuerdo con los vecinos: un píxel de grano se funde y un trazo fino no. Cada pasada raspa una corona; a 0, sin regularizar."
-        onChange={set("smoothing")}
-      />
+          <Range
+            label="Filtro motas"
+            value={v.filterSpeckle}
+            min="0"
+            max="64"
+            step="1"
+            vertical
+            hasAuto
+            autoChecked={v.autoSpeckle}
+            onAutoChange={set("autoSpeckle")}
+            onHover={() => setRangeHint(HINTS.filterSpeckle)}
+            onChange={set("filterSpeckle")}
+          />
 
-      <Range
-        label="Escalón de degradado"
-        value={v.gradientStep}
-        min="0"
-        max="0.2"
-        step="0.005"
-        hint="Ensancha las bandas de un cielo fundiendo tonos que sólo se distinguen en luz. En un dibujo con volumen aplana el sombreado."
-        onChange={set("gradientStep")}
-      />
+          <Range
+            label="Escalón degradado"
+            value={v.gradientStep}
+            min="0"
+            max="0.2"
+            step="0.005"
+            vertical
+            onHover={() => setRangeHint(HINTS.gradientStep)}
+            onChange={set("gradientStep")}
+          />
 
-      <Select
+          <Range
+            label="Desviación máxima"
+            suffix="px"
+            value={v.fitTolerance}
+            min="0.25"
+            max="3"
+            step="0.05"
+            vertical
+            hidden={!(v.fit in FIT_TOLERANCE)}
+            onHover={() => setRangeHint(HINTS.fitTolerance)}
+            onChange={set("fitTolerance")}
+          />
+
+          <Range
+            label="Limar temblor"
+            suffix="px"
+            value={v.relax}
+            min="0"
+            max="1.5"
+            step="0.05"
+            vertical
+            onHover={() => setRangeHint(HINTS.relax)}
+            onChange={set("relax")}
+          />
+        </div>
+        <div class="range-hint-card">
+          <span class="hint-icon">🎛️</span>
+          <div class="hint-content">
+            {rangeHint || "Pasa el ratón sobre un potenciómetro para ver su explicación."}
+          </div>
+        </div>
+      </div>
+
+      <ButtonGroup
         label="Contorno"
         value={v.fit}
         options={FIT_OPTIONS}
+        onHover={(hintText) => setGeneralHint(hintText || HINTS.fit)}
         onChange={(fit, opts) => onChange(fitPatch(fit), opts)}
-        hint="El polígono junta en un tramo recto los escalones que no dibujan nada: el mismo dibujo con bastante menos SVG. Las curvas no comprimen —salen algo más grandes—, pero el contorno sigue siendo liso por mucho que se amplíe."
       />
 
-      <Range
-        label="Desviación máxima"
-        suffix="px"
-        value={v.fitTolerance}
-        min="0.25"
-        max="3"
-        step="0.05"
-        hidden={!(v.fit in FIT_TOLERANCE)}
-        hint="Cuánto puede apartarse la línea del contorno. Se suma a lo que haya limado el temblor: entre las dos, ningún punto acaba más lejos que la suma. Subirla comprime y, pasado el punto en que un rasgo mide pocas veces la desviación, redondea las curvas pequeñas."
-        onChange={set("fitTolerance")}
-      />
+      <div class="toggles-row">
+        <label
+          class="toggle-card"
+          onMouseEnter={() => setGeneralHint(HINTS.subpixel)}
+          onFocusCapture={() => setGeneralHint(HINTS.subpixel)}
+        >
+          <Check checked={v.subpixel} onChange={set("subpixel")} />
+          <span>Subpíxel</span>
+        </label>
 
-      <Toggle
-        label="Borde subpíxel"
-        note="fuera de la retícula"
-        checked={v.subpixel}
-        onChange={set("subpixel")}
-        hint="El contorno sale de recorrer grietas entre píxeles, así que sus vértices caen en la retícula entera: una lente de gafas de dieciséis píxeles no puede ser redonda. El color de los píxeles del borde dice por dónde corta de verdad, y con eso se recolocan. Cuesta bytes —fuera de la retícula un tramo recto necesita dos números con decimales en vez de uno— y lo que compra es sitio, así que en una imagen grande, donde los rasgos ya miden cientos de píxeles, no hay nada que ganar."
-      />
+        <label
+          class="toggle-card"
+          onMouseEnter={() => setGeneralHint(HINTS.ramps)}
+          onFocusCapture={() => setGeneralHint(HINTS.ramps)}
+        >
+          <Check checked={v.ramps} onChange={set("ramps")} />
+          <span>Degradados</span>
+        </label>
 
-      <Range
-        label="Limar el temblor"
-        suffix="px"
-        value={v.relax}
-        min="0"
-        max="1.5"
-        step="0.05"
-        hint="El contorno sale de recorrer grietas entre píxeles, así que un canto oblicuo sale a peldaños, y los de un dibujo real son irregulares: el simplificador no los puede tirar sin salirse de lo que promete, y los escribe. Esto los lima moviendo los vértices, como mucho lo que diga el deslizador y sin tocar las esquinas, que se reconocen por el giro a lo largo del contorno. A 0, el contorno tal como sale del trazado."
-        onChange={set("relax")}
-      />
+        <label
+          class="toggle-card"
+          onMouseEnter={() => setGeneralHint(HINTS.removeBackground)}
+          onFocusCapture={() => setGeneralHint(HINTS.removeBackground)}
+        >
+          <Check checked={v.removeBackground} onChange={set("removeBackground")} />
+          <span>Quitar fondo</span>
+        </label>
+      </div>
 
-      <Toggle
-        label="Degradados"
-        note="bandas fundidas en una figura"
-        checked={v.ramps}
-        onChange={set("ramps")}
-        hint="Una rampa suave no cabe en la paleta —una región tiene un color y nada más—, así que sale a bandas, y las fronteras entre ellas no dibujan nada: sólo marcan por dónde cruzó la rampa un umbral, siguiendo el ruido del original. Cuando un solo degradado lineal reproduce el color de todas, se funden en una figura con ese degradado. Un borde duro no pasa el corte y se queda duro. En un cielo con grano quita el bandeado y nueve décimas partes del fichero; en un cartel de colores planos no encuentra nada y cuesta un poco."
-      />
-
-      <Toggle
-        label="Quitar el fondo"
-        note="y recortar al dibujo"
-        checked={v.removeBackground}
-        onChange={set("removeBackground")}
-        hint="Vacía lo que toca el borde de la imagen. El mismo color encerrado dentro se conserva."
-      />
+      <div class="active-hint-card">
+        <span class="hint-icon">💡</span>
+        <div class="hint-content">
+          {generalHint || "Pasa el ratón o pulsa sobre cualquier opción para ver su explicación."}
+        </div>
+      </div>
 
       <Advanced>
-        <Range
-          label="Mínimo para tener color propio"
-          suffix="%"
-          value={v.minColorShare}
-          min="0"
-          max="1"
-          step="0.05"
-          hint="Lo que un color tiene que valer para llevarse una entrada de la paleta. La agrupación va por frecuencia, pero la frecuencia sólo ordena y nunca frena, así que el ringing de un JPEG alrededor de un trazo negro deja una entrada por escalón. No se mide por recuento —que no distingue el ringing de un lunar del mismo tamaño— sino por el error que la entrada ahorra, así que lo que está lejos de todo conserva el suyo por poco que pinte."
-          onChange={set("minColorShare")}
-        />
+        <div class="vertical-sliders-box">
+          <div class="vertical-sliders-row cols-4">
+            <Range
+              label="Mínimo color"
+              suffix="%"
+              value={v.minColorShare}
+              min="0"
+              max="1"
+              step="0.05"
+              vertical
+              onHover={() => setAdvRangeHint(HINTS.minColorShare)}
+              onChange={set("minColorShare")}
+            />
 
-        <Range
-          label="Filtro de motas"
-          value={v.filterSpeckle}
-          min="0"
-          max="32"
-          step="1"
-          hint="Área hasta la que una región se funde con su vecina. Sin esto una foto deja decenas de miles de paths de cuatro píxeles."
-          onChange={set("filterSpeckle")}
-        />
+            <Range
+              label="Grosor mín"
+              value={v.minThickness}
+              min="0"
+              max="3"
+              step="0.25"
+              vertical
+              hasAuto
+              autoChecked={v.autoThickness}
+              onAutoChange={set("autoThickness")}
+              onHover={() => setAdvRangeHint(HINTS.minThickness)}
+              onChange={set("minThickness")}
+            />
 
-        <Range
-          label="Grosor mínimo"
-          value={v.minThickness}
-          min="0"
-          max="3"
-          step="0.25"
-          hint={
-            <>
-              Quita las bandas de un píxel que bordean cada frontera de color. A
-              1 se lleva <b>todo</b> lo que mida un píxel de ancho, incluida una
-              línea fina de dibujo: para línea fina, ponlo a 0.
-            </>
-          }
-          onChange={set("minThickness")}
-        />
+            <Range
+              label="Precisión color"
+              value={v.colorPrecision}
+              min="2"
+              max="8"
+              step="1"
+              vertical
+              onHover={() => setAdvRangeHint(HINTS.colorPrecision)}
+              onChange={set("colorPrecision")}
+            />
 
-        <Range
-          label="Precisión de color"
-          value={v.colorPrecision}
-          min="2"
-          max="8"
-          step="1"
-          hint="Bits por canal antes de agrupar; baja el ruido del último bit."
-          onChange={set("colorPrecision")}
-        />
+            <Range
+              label="Umbral alfa"
+              value={v.alpha}
+              min="0"
+              max="255"
+              step="1"
+              vertical
+              onHover={() => setAdvRangeHint(HINTS.alpha)}
+              onChange={set("alpha")}
+            />
+          </div>
+          <div class="range-hint-card">
+            <span class="hint-icon">🎛️</span>
+            <div class="hint-content">
+              {advRangeHint || "Pasa el ratón sobre un potenciómetro avanzado para ver su explicación."}
+            </div>
+          </div>
+        </div>
 
         <Field
           label="Máximo de colores"
-          hint="Con tope, los colores que sobran van al más cercano aunque quede lejos. Menos colores no es menos regiones: suele ser más."
+          onHover={() => setGeneralHint(HINTS.maxColors)}
         >
           <Row>
             <Check checked={v.capColors} onChange={set("capColors")} />
@@ -195,19 +248,9 @@ export function IllustrationPanel({ hidden, values: v, onChange, actions }) {
           </Row>
         </Field>
 
-        <Range
-          label="Umbral de alfa"
-          value={v.alpha}
-          min="0"
-          max="255"
-          step="1"
-          hint="Por debajo, el píxel se considera transparente."
-          onChange={set("alpha")}
-        />
-
         <Field
           label="Fondo"
-          hint="Sin marcar, el SVG queda con fondo transparente."
+          onHover={() => setGeneralHint(HINTS.background)}
         >
           <Row>
             <Check checked={v.useBackground} onChange={set("useBackground")} />
@@ -219,8 +262,6 @@ export function IllustrationPanel({ hidden, values: v, onChange, actions }) {
           </Row>
         </Field>
       </Advanced>
-
-      <Actions {...actions} />
     </aside>
   );
 }

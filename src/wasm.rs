@@ -298,11 +298,12 @@ fn read_cluster_config(options: &JsValue) -> Config {
         return Config::cluster(default);
     }
     let o = Options(options);
+    let simplify = o.number("simplify");
 
     let cluster = ClusterOptions {
         // Ausente es automático y `0` no reescala, así que aquí no hay
         // `unwrap_or`: la ausencia **es** un valor.
-        simplify: o.number("simplify"),
+        simplify,
         color_precision: o
             .byte("colorPrecision")
             .unwrap_or(default.color_precision)
@@ -313,8 +314,18 @@ fn read_cluster_config(options: &JsValue) -> Config {
         relax: o.number("relax").unwrap_or(default.relax),
         ramps: o.flag("ramps").unwrap_or(default.ramps),
         alpha_threshold: o.byte("alphaThreshold").unwrap_or(default.alpha_threshold),
-        filter_speckle: o.count("filterSpeckle").unwrap_or(default.filter_speckle),
-        min_thickness: o.number("minThickness").unwrap_or(default.min_thickness),
+        filter_speckle: o.count("filterSpeckle").unwrap_or_else(|| {
+            let scale = simplify
+                .map(|s| (crate::resample::FEATURE * 1000.0 / s.max(0.1)) / 300.0)
+                .unwrap_or(2.0);
+            crate::cluster::auto_speckle(scale)
+        }),
+        min_thickness: o.number("minThickness").unwrap_or_else(|| {
+            let scale = simplify
+                .map(|s| (crate::resample::FEATURE * 1000.0 / s.max(0.1)) / 300.0)
+                .unwrap_or(2.0);
+            crate::cluster::auto_thickness(scale, false)
+        }),
         gradient_step: o.number("gradientStep").unwrap_or(default.gradient_step),
         min_color_share: o.number("minColorShare").unwrap_or(default.min_color_share),
         max_colors: o.count("maxColors").unwrap_or(default.max_colors),

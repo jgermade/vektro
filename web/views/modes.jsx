@@ -12,9 +12,21 @@
 export const FIT_TOLERANCE = { polygon: 0.75, spline: 1.5 };
 
 export const FIT_OPTIONS = [
-  { value: "pixel", label: "Escalera de píxel" },
-  { value: "polygon", label: "Polígono simplificado" },
-  { value: "spline", label: "Curvas" },
+  {
+    value: "polygon",
+    label: "Polígono",
+    hint: "Junta en un tramo recto los escalones planos de color.",
+  },
+  {
+    value: "spline",
+    label: "Curva suave",
+    hint: "Redondea las formas del dibujo con trazos Bézier lisos.",
+  },
+  {
+    value: "pixel",
+    label: "Escalón",
+    hint: "Sin simplificación de contorno; conserva la escalera de píxeles.",
+  },
 ];
 
 // El ajuste es el eje que **no** depende de la segmentación, así que los dos
@@ -140,7 +152,9 @@ export const MODES = {
       // lente de gafas en un octógono— quedan por debajo y ya no muerden.
       fitTolerance: 0.75,
       removeBackground: false,
-      filterSpeckle: 4,
+      autoSpeckle: true,
+      filterSpeckle: 8,
+      autoThickness: true,
       minThickness: 1,
       colorPrecision: 5,
       capColors: false,
@@ -158,8 +172,6 @@ export const MODES = {
         ramps: v.ramps,
         minColorShare: v.minColorShare / 100,
         gradientStep: v.gradientStep,
-        filterSpeckle: v.filterSpeckle,
-        minThickness: v.minThickness,
         colorPrecision: v.colorPrecision,
         alphaThreshold: v.alpha,
         removeBackground: v.removeBackground,
@@ -168,6 +180,8 @@ export const MODES = {
       // Ausente quiere decir automático, así que sólo se manda cuando el
       // usuario ha tomado el mando.
       if (!v.autoSimplify) opts.simplify = v.simplify;
+      if (!v.autoSpeckle) opts.filterSpeckle = v.filterSpeckle;
+      if (!v.autoThickness) opts.minThickness = v.minThickness;
       if (v.capColors && Number(v.maxColors) >= 2) {
         opts.maxColors = Number(v.maxColors);
       }
