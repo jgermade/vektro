@@ -486,8 +486,14 @@ kbd {
   }
 
   .workspace-item-result .result-pane .canvas-box .result-svg,
+  .workspace-item-result .result-pane .canvas-box .processing-placeholder {
+    width: 100%;
+    height: 100%;
+  }
+
   .workspace-item-result .result-pane .canvas-box canvas,
-  .workspace-item-result .result-pane .canvas-box svg {
+  .workspace-item-result .result-pane .canvas-box .processing-canvas-wrap,
+  .workspace-item-result .result-pane .canvas-box .result-svg > svg {
     max-height: 100%;
     max-width: 100%;
     width: auto;
@@ -1092,14 +1098,14 @@ figcaption span {
   color: var(--accent);
 }
 
-.floating-fit-btn .btn-icon {
-  width: 8px;
-  height: 8px;
-  stroke-width: 2.5;
-}
-
-.floating-fit-btn:hover {
-  background: rgba(255, 255, 255, 0.25);
+.floating-fit-btn .btn-icon,
+.floating-fit-btn svg {
+  width: 60% !important;
+  height: 60% !important;
+  max-width: 60% !important;
+  max-height: 60% !important;
+  stroke-width: 2;
+  display: block;
 }
 
 .floating-fit-btn:active {
@@ -1578,6 +1584,8 @@ footer .icon-external {
   position: relative;
   width: 100%;
   height: 100%;
+  min-width: 0;
+  min-height: 0;
   max-width: 100%;
   max-height: 100%;
   margin: 0 auto;
@@ -1589,9 +1597,19 @@ footer .icon-external {
   box-shadow: none;
 }
 
-.processing-canvas {
-  width: 100%;
-  height: 100%;
+.processing-canvas-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.processing-canvas-wrap .processing-canvas,
+.processing-canvas-wrap .processing-pixel-canvas {
+  grid-area: 1 / 1;
+  width: 100% !important;
+  height: 100% !important;
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
@@ -1611,14 +1629,6 @@ footer .icon-external {
 
 /* Efecto Pixel art */
 .processing-pixel-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 58vh;
-  object-fit: contain;
-  display: block;
   image-rendering: pixelated;
   filter: contrast(1.15) saturate(1.1);
   -webkit-mask-image: linear-gradient(
@@ -1651,22 +1661,6 @@ footer .icon-external {
   }
 }
 
-.effect-pixel-zone-glow {
-  position: absolute;
-  inset: 0;
-  border: 1px solid rgba(56, 189, 248, 0.3);
-  box-shadow: inset 0 0 30px rgba(2, 132, 199, 0.2);
-  pointer-events: none;
-}
-
-@keyframes pixelLensMove {
-  0% {
-    top: 0%;
-  }
-  100% {
-    top: 65%;
-  }
-}
 
 /* Efecto Ilustración */
 .processing-placeholder.mode-illustration .processing-canvas {
@@ -1912,16 +1906,20 @@ footer .icon-external {
   }
 }
 
-.canvas-box.fit-vertical .processing-placeholder,
-.canvas-box.fit-vertical .processing-canvas,
-.canvas-box.fit-vertical .processing-pixel-canvas,
-.canvas-box.fit-vertical .result-svg,
+.canvas-box.fit-vertical .processing-canvas-wrap,
 .canvas-box.fit-vertical canvas,
-.canvas-box.fit-vertical svg {
+.canvas-box.fit-vertical .result-svg > svg {
   height: 100% !important;
   width: auto !important;
-  max-width: none !important;
+  max-width: 100% !important;
   max-height: 100% !important;
+  object-fit: contain !important;
+}
+
+.canvas-box.fit-vertical .result-svg,
+.canvas-box.fit-vertical .processing-placeholder {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .lightbox-svg-wrapper.fit-vertical svg {
@@ -1932,16 +1930,20 @@ footer .icon-external {
   object-fit: contain !important;
 }
 
-.canvas-box.fit-horizontal .processing-placeholder,
-.canvas-box.fit-horizontal .processing-canvas,
-.canvas-box.fit-horizontal .processing-pixel-canvas,
-.canvas-box.fit-horizontal .result-svg,
+.canvas-box.fit-horizontal .processing-canvas-wrap,
 .canvas-box.fit-horizontal canvas,
-.canvas-box.fit-horizontal svg {
+.canvas-box.fit-horizontal .result-svg > svg {
   width: 100% !important;
   height: auto !important;
-  max-height: none !important;
+  max-height: 100% !important;
   max-width: 100% !important;
+  object-fit: contain !important;
+}
+
+.canvas-box.fit-horizontal .result-svg,
+.canvas-box.fit-horizontal .processing-placeholder {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 .lightbox-svg-wrapper.fit-horizontal svg {

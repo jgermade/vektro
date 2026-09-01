@@ -134,12 +134,15 @@ export function ProcessingPlaceholder({ image, mode, fitMode = "vertical" }) {
       aria-label="Procesando imagen"
     >
       {image ? (
-        <>
+        <div
+          class="processing-canvas-wrap"
+          style={{ aspectRatio: `${image.width} / ${image.height}` }}
+        >
           <canvas ref={canvasRef} class="processing-canvas" />
           {mode === "pixelart" ? (
             <canvas ref={pixelCanvasRef} class="processing-pixel-canvas" />
           ) : null}
-        </>
+        </div>
       ) : (
         <div class="processing-fallback-skeleton" />
       )}
@@ -157,7 +160,6 @@ export function ProcessingPlaceholder({ image, mode, fitMode = "vertical" }) {
       ) : null}
 
       <div class="processing-effects" aria-hidden="true">
-        {mode === "pixelart" ? <div class="effect-pixel-zone-glow" /> : null}
         <span class="processing-badge">{badgeLabel}</span>
       </div>
     </div>
