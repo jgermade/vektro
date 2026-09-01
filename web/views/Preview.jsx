@@ -39,6 +39,7 @@ export function ResultPane() {
   const [copied, setCopied] = useState(false);
   const [fitMode, setFitMode] = useState("vertical");
   const [isDragging, setIsDragging] = useState(false);
+  const [isPanned, setIsPanned] = useState(false);
 
   const svgRef = useRef(null);
   const panRef = useRef({ x: 0, y: 0 });
@@ -58,6 +59,7 @@ export function ResultPane() {
 
   useEffect(() => {
     panRef.current = { x: 0, y: 0 };
+    setIsPanned(false);
     if (svgRef.current) {
       svgRef.current.style.transform = "";
     }
@@ -103,12 +105,32 @@ export function ResultPane() {
     setIsDragging(false);
     if (!hasMovedRef.current) {
       setLightboxOpen(true);
+    } else {
+      if (Math.abs(panRef.current.x) > 2 || Math.abs(panRef.current.y) > 2) {
+        setIsPanned(true);
+      } else {
+        setIsPanned(false);
+      }
     }
   };
 
   const handleSvgClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
+  };
+
+  const handleFitBtnClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isPanned) {
+      panRef.current = { x: 0, y: 0 };
+      setIsPanned(false);
+      if (svgRef.current) {
+        svgRef.current.style.transform = "";
+      }
+    } else {
+      setFitMode((prev) => (prev === "vertical" ? "horizontal" : "vertical"));
+    }
   };
 
   const report = result && engine ? MODES[engine].report(result) : null;
@@ -133,16 +155,29 @@ export function ResultPane() {
         >
           <button
             type="button"
-            class="floating-fit-btn"
+            class={`floating-fit-btn ${isPanned ? "is-panned" : ""}`}
             onPointerDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              setFitMode((prev) => (prev === "vertical" ? "horizontal" : "vertical"));
-            }}
-            title={fitMode === "vertical" ? t("fit_horizontal", "Cambiar a ajuste horizontal") : t("fit_vertical", "Cambiar a ajuste vertical")}
-            aria-label={t("toggle_fit", "Conmutar ajuste de imagen")}
+            onPointerUp={(e) => e.stopPropagation()}
+            onClick={handleFitBtnClick}
+            title={
+              isPanned
+                ? t("recenter_image", "Reubicar imagen")
+                : fitMode === "vertical"
+                  ? t("fit_horizontal", "Cambiar a ajuste horizontal")
+                  : t("fit_vertical", "Cambiar a ajuste vertical")
+            }
+            aria-label={
+              isPanned
+                ? t("recenter_image", "Reubicar imagen")
+                : t("toggle_fit", "Conmutar ajuste de imagen")
+            }
           >
-            {fitMode === "vertical" ? (
+            {isPanned ? (
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+              </svg>
+            ) : fitMode === "vertical" ? (
               <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" />
               </svg>
