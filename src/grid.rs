@@ -45,11 +45,9 @@ fn axis_gradient(img: &RgbaImage, horizontal: bool) -> Vec<f64> {
     let (len, cross) = if horizontal { (w, h) } else { (h, w) };
     let mut out = vec![0.0; len as usize];
 
-    let stride = (cross / 400).max(1);
     for i in 1..len {
         let mut acc = 0.0;
-        let mut count = 0;
-        for j in (0..cross).step_by(stride as usize) {
+        for j in 0..cross {
             let (xa, ya, xb, yb) = if horizontal {
                 (i - 1, j, i, j)
             } else {
@@ -63,9 +61,10 @@ fn axis_gradient(img: &RgbaImage, horizontal: bool) -> Vec<f64> {
             acc += (0..4)
                 .map(|c| (a[c] as f64 - b[c] as f64).abs())
                 .fold(0.0, f64::max);
-            count += 1;
         }
-        out[i as usize] = if count > 0 { acc / count as f64 } else { 0.0 };
+        // Se normaliza por la línea entera, no por los pares que han contado:
+        // así una franja casi transparente no infla su gradiente.
+        out[i as usize] = acc / cross as f64;
     }
     out
 }
@@ -123,7 +122,7 @@ fn detect_axis(grad: &[f64], max_cell: f64) -> Axis {
 
     // Se barre en frecuencia (no en periodo) para muestrear por igual todas las
     // escalas; el paso resuelve un cuarto de la anchura de un lóbulo.
-    let step = 1.0 / (4.0 * len.min(800.0));
+    let step = 1.0 / (4.0 * len);
     let f_min = 1.0 / max_cell;
     let steps = (((0.5 - f_min) / step).ceil() as usize).max(1);
 
