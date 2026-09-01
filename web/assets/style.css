@@ -441,6 +441,56 @@ kbd {
     order: 1;
     width: 100%;
     box-sizing: border-box;
+    position: sticky;
+    top: 0;
+    z-index: 34;
+    max-height: 50vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace-item-original .original-pane {
+    max-height: 50vh;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .workspace-item-original .original-pane figure {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    margin: 0;
+    flex: 1;
+    gap: 0.4rem;
+  }
+
+  .workspace-item-original .original-pane .canvas-box {
+    flex: 1;
+    min-height: 0;
+    max-height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .workspace-item-original .original-pane .canvas-box canvas {
+    max-height: 100%;
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .workspace-item-original .original-pane .canvas-box .skeleton {
+    min-height: 0;
   }
 
   .workspace-item-result {
