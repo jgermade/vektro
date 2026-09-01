@@ -1,15 +1,35 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 
-export function LightboxModal({ open, svg, meta, initialFitMode = "vertical", onClose, onDownload }) {
+export function LightboxModal({ open, svg, meta, image, onClose, onDownload }) {
   const dialogRef = useRef(null);
   const [zoom, setZoom] = useState(1.0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [fitMode, setFitMode] = useState(initialFitMode);
+  const [fitMode, setFitMode] = useState("vertical");
 
   const dragStartRef = useRef({ x: 0, y: 0 });
   const panStartRef = useRef({ x: 0, y: 0 });
   const touchRef = useRef({ dist: 0, initialZoom: 1 });
+
+  const getOptimalFit = () => {
+    let imgW = image?.width;
+    let imgH = image?.height;
+    if (!imgW || !imgH) {
+      const match = svg?.match(/viewBox=["']\s*[\d.-]+\s+[\d.-]+\s+([\d.-]+)\s+([\d.-]+)\s*["']/i);
+      if (match) {
+        imgW = parseFloat(match[1]);
+        imgH = parseFloat(match[2]);
+      }
+    }
+    if (!imgW || !imgH) return "vertical";
+    const vpW = window.innerWidth * 0.9;
+    const vpH = window.innerHeight * 0.82;
+    const imgRatio = imgW / imgH;
+    const vpRatio = vpW / vpH;
+    // Si la imagen es relativamente más ancha que la pantalla,
+    // debe ajustarse al ancho ("horizontal") para no quedar recortada por los lados.
+    return imgRatio > vpRatio ? "horizontal" : "vertical";
+  };
 
   const resetZoomAndPan = () => {
     setZoom(1.0);
@@ -23,15 +43,12 @@ export function LightboxModal({ open, svg, meta, initialFitMode = "vertical", on
   };
 
   useEffect(() => {
-    setFitMode(initialFitMode);
-  }, [initialFitMode]);
-
-  useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) return;
 
     if (open) {
       resetZoomAndPan();
+      setFitMode(getOptimalFit());
       if (!dialog.open) {
         dialog.showModal();
       }
@@ -41,7 +58,18 @@ export function LightboxModal({ open, svg, meta, initialFitMode = "vertical", on
         dialog.close();
       }
     }
-  }, [open]);
+  }, [open, svg, image]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleResize = () => {
+      if (zoom === 1.0 && pan.x === 0 && pan.y === 0) {
+        setFitMode(getOptimalFit());
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, [open, svg, image, zoom, pan]);
 
   useEffect(() => {
     if (!open) return;

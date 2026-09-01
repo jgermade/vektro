@@ -211,7 +211,7 @@ export function ResultPane() {
         open={lightboxOpen}
         svg={svg}
         meta={metaText}
-        initialFitMode={fitMode}
+        image={image}
         onClose={() => setLightboxOpen(false)}
         onDownload={converter.download}
       />
