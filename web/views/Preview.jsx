@@ -40,11 +40,17 @@ export function ResultPane() {
   const [fitMode, setFitMode] = useState("vertical");
   const [isDragging, setIsDragging] = useState(false);
   const [isPanned, setIsPanned] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= 860
+  );
 
+  const containerRef = useRef(null);
   const svgRef = useRef(null);
   const panRef = useRef({ x: 0, y: 0 });
   const dragStartRef = useRef({ x: 0, y: 0 });
   const panStartRef = useRef({ x: 0, y: 0 });
+  const lastTouchPosRef = useRef({ x: 0, y: 0 });
   const hasMovedRef = useRef(false);
 
   const image = converter.image.value;
@@ -58,25 +64,100 @@ export function ResultPane() {
   const ms = converter.elapsed.value;
 
   useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 860);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const getContainerDom = () => containerRef.current?.base || containerRef.current;
+  const getSvgDom = () => svgRef.current?.base || svgRef.current;
+
+  const checkIsCropped = () => {
+    if (isPanned) return true;
+    const container = getContainerDom();
+    if (!container || typeof container.getBoundingClientRect !== "function") return false;
+
+    const svgDiv = getSvgDom();
+    const svgEl = svgDiv?.querySelector ? svgDiv.querySelector("svg") : null;
+
+    if (svgEl && typeof svgEl.getBoundingClientRect === "function") {
+      const cRect = container.getBoundingClientRect();
+      const sRect = svgEl.getBoundingClientRect();
+      if (sRect.width > cRect.width + 1 || sRect.height > cRect.height + 1) {
+        return true;
+      }
+    }
+
+    let imgW = source?.width || image?.width;
+    let imgH = source?.height || image?.height;
+    if (!imgW || !imgH) {
+      const match = svg?.match(/viewBox=["']\s*[\d.-]+\s+[\d.-]+\s+([\d.-]+)\s+([\d.-]+)\s*["']/i);
+      if (match) {
+        imgW = parseFloat(match[1]);
+        imgH = parseFloat(match[2]);
+      }
+    }
+    if (!imgW || !imgH) return false;
+
+    const cW = container.clientWidth;
+    const cH = container.clientHeight;
+    if (!cW || !cH) return false;
+
+    const imgRatio = imgW / imgH;
+
+    if (fitMode === "vertical") {
+      return (cH * imgRatio) > cW + 1;
+    } else {
+      return (cW / imgRatio) > cH + 1;
+    }
+  };
+
+  useEffect(() => {
     panRef.current = { x: 0, y: 0 };
     setIsPanned(false);
-    if (svgRef.current) {
-      svgRef.current.style.transform = "";
+    const svgDom = getSvgDom();
+    if (svgDom && svgDom.style) {
+      svgDom.style.transform = "";
     }
-  }, [fitMode, image]);
+
+    const updateOverflow = () => {
+      setIsOverflowing(checkIsCropped());
+    };
+
+    updateOverflow();
+    const timer = setTimeout(updateOverflow, 50);
+    window.addEventListener("resize", updateOverflow);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", updateOverflow);
+    };
+  }, [fitMode, image, svg, source]);
+
+  const isCropped = isPanned || isOverflowing;
+  const canPan = !isMobile || isCropped;
 
   const handlePointerDown = (e) => {
     if (e.target.closest("button")) return;
-    e.preventDefault();
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      // Ignore if capture fails
+
+    const cropped = checkIsCropped();
+    const canPanImage = !isMobile || cropped;
+
+    if (canPanImage) {
+      e.preventDefault();
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // Ignore if capture fails
+      }
     }
+
     setIsDragging(true);
     hasMovedRef.current = false;
     dragStartRef.current = { x: e.clientX, y: e.clientY };
     panStartRef.current = { ...panRef.current };
+    lastTouchPosRef.current = { x: e.clientX, y: e.clientY };
   };
 
   const handlePointerMove = (e) => {
@@ -86,13 +167,24 @@ export function ResultPane() {
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
       hasMovedRef.current = true;
     }
-    const x = panStartRef.current.x + dx;
-    const y = panStartRef.current.y + dy;
-    panRef.current = { x, y };
 
-    if (svgRef.current) {
-      svgRef.current.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+    const cropped = checkIsCropped();
+    const canPanImage = !isMobile || cropped;
+
+    if (canPanImage) {
+      const x = panStartRef.current.x + dx;
+      const y = panStartRef.current.y + dy;
+      panRef.current = { x, y };
+
+      const svgDom = getSvgDom();
+      if (svgDom && svgDom.style) {
+        svgDom.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      }
+    } else {
+      const stepY = e.clientY - lastTouchPosRef.current.y;
+      window.scrollBy(0, -stepY);
     }
+    lastTouchPosRef.current = { x: e.clientX, y: e.clientY };
   };
 
   const handlePointerUp = (e) => {
@@ -103,6 +195,7 @@ export function ResultPane() {
       // Capture already released
     }
     setIsDragging(false);
+
     if (!hasMovedRef.current) {
       setLightboxOpen(true);
     } else {
@@ -125,8 +218,9 @@ export function ResultPane() {
     if (isPanned) {
       panRef.current = { x: 0, y: 0 };
       setIsPanned(false);
-      if (svgRef.current) {
-        svgRef.current.style.transform = "";
+      const svgDom = getSvgDom();
+      if (svgDom && svgDom.style) {
+        svgDom.style.transform = "";
       }
     } else {
       setFitMode((prev) => (prev === "vertical" ? "horizontal" : "vertical"));
@@ -145,7 +239,9 @@ export function ResultPane() {
       >
         <CanvasBox
           id="resultBox"
+          ref={containerRef}
           class={`fit-${fitMode} ${isDragging ? "is-dragging" : ""}`}
+          style={{ touchAction: "none" }}
           stale={pending && Boolean(svg)}
           skeleton={!svg && !image}
           onPointerDown={handlePointerDown}
@@ -157,7 +253,6 @@ export function ResultPane() {
             type="button"
             class={`floating-fit-btn ${isPanned ? "is-panned" : ""}`}
             onPointerDown={(e) => e.stopPropagation()}
-            onPointerUp={(e) => e.stopPropagation()}
             onClick={handleFitBtnClick}
             title={
               isPanned

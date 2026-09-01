@@ -546,8 +546,7 @@ kbd {
   }
 
   .workspace-item-result .result-pane .canvas-box canvas,
-  .workspace-item-result .result-pane .canvas-box .processing-canvas-wrap,
-  .workspace-item-result .result-pane .canvas-box .result-svg > svg {
+  .workspace-item-result .result-pane .canvas-box .processing-canvas-wrap {
     max-height: 100%;
     max-width: 100%;
     width: auto;

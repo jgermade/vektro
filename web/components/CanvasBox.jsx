@@ -1,11 +1,11 @@
 // Las dos cajas de la vista previa: el damero de fondo, lo que se enseñe
 // dentro, y el esqueleto encima mientras no hay nada que enseñar.
 
-export function CanvasBox({ id, stale, skeleton, class: className = "", style, children, ...props }) {
+export function CanvasBox({ id, stale, skeleton, class: className = "", style, children, ref, ...props }) {
   const baseClasses = stale ? "canvas-box checker stale" : "canvas-box checker";
   const finalClass = className ? `${baseClasses} ${className}` : baseClasses;
   return (
-    <div class={finalClass} id={id} style={style} {...props}>
+    <div ref={ref} class={finalClass} id={id} style={style} {...props}>
       {children}
       <div class="skeleton" style={style} hidden={!skeleton} aria-hidden="true" />
     </div>
