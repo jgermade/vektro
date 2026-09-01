@@ -235,37 +235,62 @@ export function LightboxModal({ open, svg, meta, initialFitMode = "vertical", on
             cursor: isDragging ? "grabbing" : zoom > 1.0 ? "grab" : "default",
           }}
         >
-          <button
-            type="button"
-            class="lightbox-floating-reset-btn"
-            onClick={(e) => {
-              e.stopPropagation();
-              resetZoomAndPan();
-              setFitMode((prev) => (prev === "vertical" ? "horizontal" : "vertical"));
-            }}
-            title={fitMode === "vertical" ? "Restablecer y cambiar a ajuste horizontal" : "Restablecer y cambiar a ajuste vertical"}
-            aria-label="Restablecer vista y alternar ajuste"
-          >
-            {fitMode === "vertical" ? (
-              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" />
-              </svg>
-            ) : (
-              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" />
-              </svg>
-            )}
-          </button>
+          {(() => {
+            const isMovedOrZoomed = zoom !== 1.0 || pan.x !== 0 || pan.y !== 0;
+            return (
+              <button
+                type="button"
+                class={`lightbox-floating-reset-btn ${isMovedOrZoomed ? "is-panned" : ""}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (isMovedOrZoomed) {
+                    resetZoomAndPan();
+                  } else {
+                    setFitMode((prev) => (prev === "vertical" ? "horizontal" : "vertical"));
+                  }
+                }}
+                title={
+                  isMovedOrZoomed
+                    ? "Reajustar vista"
+                    : fitMode === "vertical"
+                      ? "Cambiar a ajuste horizontal"
+                      : "Cambiar a ajuste vertical"
+                }
+                aria-label={
+                  isMovedOrZoomed
+                    ? "Reajustar vista"
+                    : "Alternar ajuste"
+                }
+              >
+                {isMovedOrZoomed ? (
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+                  </svg>
+                ) : fitMode === "vertical" ? (
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4" />
+                  </svg>
+                ) : (
+                  <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" />
+                  </svg>
+                )}
+              </button>
+            );
+          })()}
 
-          <div
-            class={`lightbox-svg-wrapper checker fit-${fitMode}`}
-            style={{
-              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-              transformOrigin: "center center",
-              transition: isDragging || zoom === 1.0 ? "none" : "transform 0.08s ease-out",
-            }}
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
+          <div class="lightbox-svg-wrapper checker">
+            <div
+              class={`lightbox-svg-content fit-${fitMode}`}
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                transformOrigin: "center center",
+                transition: isDragging || (zoom === 1.0 && pan.x === 0 && pan.y === 0) ? "none" : "transform 0.08s ease-out",
+              }}
+              dangerouslySetInnerHTML={{ __html: svg }}
+            />
+          </div>
         </main>
       </div>
     </dialog>

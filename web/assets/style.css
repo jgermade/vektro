@@ -1620,15 +1620,16 @@ footer .icon-external {
   place-items: center;
 }
 
+.processing-canvas-wrap canvas,
 .processing-canvas-wrap .processing-canvas,
 .processing-canvas-wrap .processing-pixel-canvas {
-  grid-area: 1 / 1;
+  grid-area: 1 / 1 !important;
   width: 100% !important;
   height: 100% !important;
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
-  display: block;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: fill !important;
+  display: block !important;
 }
 
 .canvas-box.is-dragging {
@@ -1865,15 +1866,40 @@ footer .icon-external {
 }
 
 .lightbox-svg-wrapper {
+  position: relative;
+  width: 90vw;
+  height: 82vh;
   max-width: 90vw;
   max-height: 82vh;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 1rem;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   user-select: none;
+  overflow: hidden;
+}
+
+.lightbox-svg-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lightbox-svg-content svg,
+.lightbox-svg-wrapper svg {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .lightbox-body {
@@ -1910,6 +1936,11 @@ footer .icon-external {
   transform: scale(0.92);
 }
 
+.lightbox-floating-reset-btn.is-panned {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 60%, rgba(255, 255, 255, 0.22));
+}
+
 @media (max-width: 640px) {
   .lightbox-zoom-controls {
     display: none;
@@ -1922,7 +1953,6 @@ footer .icon-external {
 }
 
 .canvas-box.fit-vertical .processing-canvas-wrap,
-.canvas-box.fit-vertical canvas,
 .canvas-box.fit-vertical .result-svg > svg {
   height: 100% !important;
   width: auto !important;
@@ -1937,16 +1967,16 @@ footer .icon-external {
   height: 100% !important;
 }
 
-.lightbox-svg-wrapper.fit-vertical svg {
+.lightbox-svg-content.fit-vertical svg {
   height: 100% !important;
   width: auto !important;
-  max-width: none !important;
   max-height: 100% !important;
+  max-width: none !important;
   object-fit: contain !important;
+  flex-shrink: 0;
 }
 
 .canvas-box.fit-horizontal .processing-canvas-wrap,
-.canvas-box.fit-horizontal canvas,
 .canvas-box.fit-horizontal .result-svg > svg {
   width: 100% !important;
   height: auto !important;
@@ -1961,10 +1991,12 @@ footer .icon-external {
   height: 100% !important;
 }
 
-.lightbox-svg-wrapper.fit-horizontal svg {
+.lightbox-svg-content.fit-horizontal svg {
   width: 100% !important;
   height: auto !important;
-  max-height: none !important;
   max-width: 100% !important;
+  max-height: none !important;
   object-fit: contain !important;
+  flex-shrink: 0;
 }
+
