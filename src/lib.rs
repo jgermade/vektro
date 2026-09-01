@@ -488,7 +488,21 @@ fn convert_grid(
     let (mut ax, mut ay) = match options.scale {
         Some(s) if s >= 1.0 => (Axis::new(s, 0.0), Axis::new(s, 0.0)),
         Some(s) => return Err(Error::InvalidScale(s)),
-        None => grid::detect(img),
+        None => {
+            let (x, y) = grid::detect(img);
+            if x.cell <= 1.25 && y.cell <= 1.25 {
+                let max_dim = img.width().max(img.height()) as f64;
+                if max_dim > 120.0 {
+                    let target_cells = 64.0;
+                    let forced_scale = (max_dim / target_cells).round().max(2.0);
+                    (Axis::new(forced_scale, 0.0), Axis::new(forced_scale, 0.0))
+                } else {
+                    (x, y)
+                }
+            } else {
+                (x, y)
+            }
+        }
     };
     if let Some((ox, oy)) = options.offset {
         ax = Axis::new(ax.cell, ox);

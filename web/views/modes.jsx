@@ -87,7 +87,7 @@ export const MODES = {
         mergeColors: v.mergeColors,
         ...fitOptions(v),
       };
-      if (!v.autoScale && Number(v.scale) >= 1) opts.scale = Number(v.scale);
+      if (Number(v.scale) >= 1) opts.scale = Number(v.scale);
       if (!v.autoPixel && Number(v.pixelSize) >= 1) {
         opts.pixelSize = Number(v.pixelSize);
       }
