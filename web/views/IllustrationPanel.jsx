@@ -24,6 +24,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
     relax: "Lima los peldaños irregulares moviendo vértices sin tocar las esquinas.",
     ramps: "Funde las bandas de color en figuras con degradado lineal.",
     removeBackground: "Vacía lo que toca el borde de la imagen. El mismo color encerrado dentro se conserva.",
+    layering: "Añade un solapamiento en las fronteras de color para eliminar las líneas blancas sin alterar la geometría de las formas.",
     minColorShare: "Lo que un color tiene que valer para llevarse una entrada de la paleta.",
     minThickness: "Quita las bandas de un píxel que bordean cada frontera de color. En automático protege líneas finas.",
     colorPrecision: "Bits por canal antes de agrupar; baja el ruido del último bit.",
@@ -46,6 +47,65 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
       aria-labelledby="tab-illustration"
       hidden={hidden}
     >
+      <ButtonGroup
+        label="Contorno"
+        hint={HINTS.fit}
+        value={v.fit}
+        options={FIT_OPTIONS}
+        onHover={(hintText) => setHint(hintText || HINTS.fit)}
+        onChange={(fit, opts) => onChange(fitPatch(fit), opts)}
+      />
+
+      <div class="toggles-row">
+        <label
+          class="toggle-card"
+          data-hint={HINTS.subpixel}
+          onMouseEnter={() => setHint(HINTS.subpixel)}
+          onFocusCapture={() => setHint(HINTS.subpixel)}
+          onClick={() => setHint(HINTS.subpixel)}
+          onTouchStart={() => setHint(HINTS.subpixel)}
+        >
+          <Check checked={v.subpixel} onChange={set("subpixel")} />
+          <span>Subpíxel</span>
+        </label>
+
+        <label
+          class="toggle-card"
+          data-hint={HINTS.ramps}
+          onMouseEnter={() => setHint(HINTS.ramps)}
+          onFocusCapture={() => setHint(HINTS.ramps)}
+          onClick={() => setHint(HINTS.ramps)}
+          onTouchStart={() => setHint(HINTS.ramps)}
+        >
+          <Check checked={v.ramps} onChange={set("ramps")} />
+          <span>Degradados</span>
+        </label>
+
+        <label
+          class="toggle-card"
+          data-hint={HINTS.layering}
+          onMouseEnter={() => setHint(HINTS.layering)}
+          onFocusCapture={() => setHint(HINTS.layering)}
+          onClick={() => setHint(HINTS.layering)}
+          onTouchStart={() => setHint(HINTS.layering)}
+        >
+          <Check checked={v.layering} onChange={set("layering")} />
+          <span>Découpage</span>
+        </label>
+
+        <label
+          class="toggle-card"
+          data-hint={HINTS.removeBackground}
+          onMouseEnter={() => setHint(HINTS.removeBackground)}
+          onFocusCapture={() => setHint(HINTS.removeBackground)}
+          onClick={() => setHint(HINTS.removeBackground)}
+          onTouchStart={() => setHint(HINTS.removeBackground)}
+        >
+          <Check checked={v.removeBackground} onChange={set("removeBackground")} />
+          <span>Quitar fondo</span>
+        </label>
+      </div>
+
       <Range
         label="Simplificación"
         hint={HINTS.simplify}
@@ -120,53 +180,6 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
         onHover={() => setHint(HINTS.relax)}
         onChange={set("relax")}
       />
-
-      <ButtonGroup
-        label="Contorno"
-        hint={HINTS.fit}
-        value={v.fit}
-        options={FIT_OPTIONS}
-        onHover={(hintText) => setHint(hintText || HINTS.fit)}
-        onChange={(fit, opts) => onChange(fitPatch(fit), opts)}
-      />
-
-      <div class="toggles-row">
-        <label
-          class="toggle-card"
-          data-hint={HINTS.subpixel}
-          onMouseEnter={() => setHint(HINTS.subpixel)}
-          onFocusCapture={() => setHint(HINTS.subpixel)}
-          onClick={() => setHint(HINTS.subpixel)}
-          onTouchStart={() => setHint(HINTS.subpixel)}
-        >
-          <Check checked={v.subpixel} onChange={set("subpixel")} />
-          <span>Subpíxel</span>
-        </label>
-
-        <label
-          class="toggle-card"
-          data-hint={HINTS.ramps}
-          onMouseEnter={() => setHint(HINTS.ramps)}
-          onFocusCapture={() => setHint(HINTS.ramps)}
-          onClick={() => setHint(HINTS.ramps)}
-          onTouchStart={() => setHint(HINTS.ramps)}
-        >
-          <Check checked={v.ramps} onChange={set("ramps")} />
-          <span>Degradados</span>
-        </label>
-
-        <label
-          class="toggle-card"
-          data-hint={HINTS.removeBackground}
-          onMouseEnter={() => setHint(HINTS.removeBackground)}
-          onFocusCapture={() => setHint(HINTS.removeBackground)}
-          onClick={() => setHint(HINTS.removeBackground)}
-          onTouchStart={() => setHint(HINTS.removeBackground)}
-        >
-          <Check checked={v.removeBackground} onChange={set("removeBackground")} />
-          <span>Quitar fondo</span>
-        </label>
-      </div>
 
       <Advanced>
         <Range

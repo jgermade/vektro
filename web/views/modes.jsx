@@ -13,6 +13,11 @@ export const FIT_TOLERANCE = { polygon: 0.75, spline: 1.5 };
 
 export const FIT_OPTIONS = [
   {
+    value: "pixel",
+    label: "Escalón",
+    hint: "Sin simplificación de contorno; conserva la escalera de píxeles.",
+  },
+  {
     value: "polygon",
     label: "Polígono",
     hint: "Junta en un tramo recto los escalones planos de color.",
@@ -21,11 +26,6 @@ export const FIT_OPTIONS = [
     value: "spline",
     label: "Curva suave",
     hint: "Redondea las formas del dibujo con trazos Bézier lisos.",
-  },
-  {
-    value: "pixel",
-    label: "Escalón",
-    hint: "Sin simplificación de contorno; conserva la escalera de píxeles.",
   },
 ];
 
@@ -77,6 +77,7 @@ export const MODES = {
       mergeColors: false,
       fit: "pixel",
       fitTolerance: 0.75,
+      layering: true,
     },
     options(v) {
       const opts = {
@@ -85,6 +86,7 @@ export const MODES = {
         removeCheckerboard: v.removeChecker,
         removeBackground: v.removeBackground,
         mergeColors: v.mergeColors,
+        layering: v.layering,
         ...fitOptions(v),
       };
       if (Number(v.scale) >= 1) opts.scale = Number(v.scale);
@@ -142,10 +144,8 @@ export const MODES = {
       // wasm va en tanto por uno.
       minColorShare: 0.2,
       gradientStep: 0.05,
-      // A diferencia de pixelart, aquí no hay ninguna escalera que preservar
-      // —sólo la de la retícula—, y enderezarla quita entre un 23% y un 32% del
-      // fichero sin que se note en el dibujo.
-      fit: "polygon",
+      // Curva suave por defecto para ilustraciones.
+      fit: "spline",
       // La de fábrica, y no una más estrecha: la escala de trabajo lleva el rasgo
       // pequeño a tres píxeles, y ahí los escalones de la retícula —0.5 y
       // raíz(2)/2, donde una escalera de 45 grados colapsa en su diagonal y una
@@ -162,6 +162,7 @@ export const MODES = {
       alpha: 128,
       useBackground: false,
       background: "#ffffff",
+      layering: false,
     },
     options(v) {
       const opts = {
@@ -175,6 +176,7 @@ export const MODES = {
         colorPrecision: v.colorPrecision,
         alphaThreshold: v.alpha,
         removeBackground: v.removeBackground,
+        layering: v.layering,
         ...fitOptions(v),
       };
       // Ausente quiere decir automático, así que sólo se manda cuando el

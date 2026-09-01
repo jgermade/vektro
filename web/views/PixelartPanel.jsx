@@ -25,6 +25,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
     mergeColors: "Ocupa menos, pero cada figura del SVG pasa a ser todo lo que comparte color, esté donde esté.",
     fit: "En pixel art la escalera es el dibujo, así que lo normal es dejarla. El polígono endereza las diagonales y las curvas redondean el sprite.",
     fitTolerance: "Cuánto puede apartarse la línea del contorno original.",
+    layering: "Añade un solapamiento en las fronteras de color para eliminar las líneas blancas sin alterar la geometría de las formas.",
   };
 
   const setHint = (text) => {
@@ -41,6 +42,65 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
       aria-labelledby="tab-pixelart"
       hidden={hidden}
     >
+      <ButtonGroup
+        label="Contorno"
+        hint={HINTS.fit}
+        value={v.fit}
+        options={FIT_OPTIONS}
+        onHover={(hintText) => setHint(hintText || HINTS.fit)}
+        onChange={(fit, opts) => onChange(fitPatch(fit), opts)}
+      />
+
+      <div class="toggles-row">
+        <label
+          class="toggle-card"
+          data-hint={HINTS.removeChecker}
+          onMouseEnter={() => setHint(HINTS.removeChecker)}
+          onFocusCapture={() => setHint(HINTS.removeChecker)}
+          onClick={() => setHint(HINTS.removeChecker)}
+          onTouchStart={() => setHint(HINTS.removeChecker)}
+        >
+          <Check checked={v.removeChecker} onChange={set("removeChecker")} />
+          <span>Damero</span>
+        </label>
+
+        <label
+          class="toggle-card"
+          data-hint={HINTS.layering}
+          onMouseEnter={() => setHint(HINTS.layering)}
+          onFocusCapture={() => setHint(HINTS.layering)}
+          onClick={() => setHint(HINTS.layering)}
+          onTouchStart={() => setHint(HINTS.layering)}
+        >
+          <Check checked={v.layering} onChange={set("layering")} />
+          <span>Découpage</span>
+        </label>
+
+        <label
+          class="toggle-card"
+          data-hint={HINTS.removeBackground}
+          onMouseEnter={() => setHint(HINTS.removeBackground)}
+          onFocusCapture={() => setHint(HINTS.removeBackground)}
+          onClick={() => setHint(HINTS.removeBackground)}
+          onTouchStart={() => setHint(HINTS.removeBackground)}
+        >
+          <Check checked={v.removeBackground} onChange={set("removeBackground")} />
+          <span>Quitar fondo</span>
+        </label>
+
+        <label
+          class="toggle-card"
+          data-hint={HINTS.mergeColors}
+          onMouseEnter={() => setHint(HINTS.mergeColors)}
+          onFocusCapture={() => setHint(HINTS.mergeColors)}
+          onClick={() => setHint(HINTS.mergeColors)}
+          onTouchStart={() => setHint(HINTS.mergeColors)}
+        >
+          <Check checked={v.mergeColors} onChange={set("mergeColors")} />
+          <span>Por color</span>
+        </label>
+      </div>
+
       <Field
         label="Escala de la rejilla"
         hint={HINTS.scale}
@@ -72,24 +132,6 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
         step="1"
         onHover={() => setHint(HINTS.tolerance)}
         onChange={set("tolerance")}
-      />
-
-      <Toggle
-        label="Quitar cuadrícula de transparencia"
-        hint={HINTS.removeChecker}
-        note="damero blanco/gris"
-        checked={v.removeChecker}
-        onHover={() => setHint(HINTS.removeChecker)}
-        onChange={set("removeChecker")}
-      />
-
-      <ButtonGroup
-        label="Contorno"
-        hint={HINTS.fit}
-        value={v.fit}
-        options={FIT_OPTIONS}
-        onHover={(hintText) => setHint(hintText || HINTS.fit)}
-        onChange={(fit, opts) => onChange(fitPatch(fit), opts)}
       />
 
       <Advanced>
@@ -149,24 +191,6 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
             />
           </Row>
         </Field>
-
-        <Toggle
-          label="Quitar el fondo"
-          hint={HINTS.removeBackground}
-          note="y recortar al dibujo"
-          checked={v.removeBackground}
-          onHover={() => setHint(HINTS.removeBackground)}
-          onChange={set("removeBackground")}
-        />
-
-        <Toggle
-          label="Un path por color"
-          hint={HINTS.mergeColors}
-          note="en vez de por bloque"
-          checked={v.mergeColors}
-          onHover={() => setHint(HINTS.mergeColors)}
-          onChange={set("mergeColors")}
-        />
       </Advanced>
     </aside>
   );

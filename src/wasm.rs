@@ -340,6 +340,7 @@ fn read_cluster_config(options: &JsValue) -> Config {
     Config {
         background: o.text("background"),
         fit: read_fit(&o),
+        layering: o.flag("layering").unwrap_or(true),
         ..Config::cluster(cluster)
     }
 }
@@ -362,6 +363,8 @@ export interface FitOptions {
      * Por omisión, 0.75 con `"polygon"` y 1.5 con `"spline"`.
      */
     fitTolerance?: number;
+    /** Superponer formas contenedoras como capas sólidas por debajo. */
+    layering?: boolean;
 }
 "#;
 
@@ -451,6 +454,8 @@ export interface PixelOptions extends FitOptions {
     removeBackground?: boolean;
     /** Fondo impuesto, en hexadecimal, en vez del detectado. */
     background?: string;
+    /** Superponer formas contenedoras como capas sólidas por debajo. */
+    layering?: boolean;
 }
 "#;
 
@@ -483,6 +488,7 @@ fn read_config(options: &JsValue) -> Config {
     Config {
         background: o.text("background"),
         fit: read_fit(&o),
+        layering: o.flag("layering").unwrap_or(true),
         ..Config::grid(grid)
     }
 }

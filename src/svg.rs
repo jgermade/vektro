@@ -22,6 +22,8 @@ pub struct Options {
     /// Color de fondo opcional (se emite como rectángulo bajo los paths).
     pub background: Option<String>,
     pub fit: Fit,
+    /// Superponer formas contenedoras como capas sólidas por debajo para eliminar grietas de renderizado.
+    pub layering: bool,
 }
 
 pub struct Output {
@@ -46,11 +48,7 @@ pub fn render(regions: &Regions, opts: &Options) -> Output {
     let mut total_paths = 0;
     let mut total_subpaths = 0;
 
-    // Los degradados van los primeros, justo encima del fondo. El orden no decide
-    // nada —las regiones se reparten el lienzo sin solaparse y las fronteras
-    // compartidas se ajustan una sola vez, así que ninguna tapa a otra—, pero la
-    // convención del documento es que lo grande quede abajo, y una figura de
-    // degradado es la unión de un montón de bandas.
+    // Los degradados van los primeros, justo encima del fondo.
     let mut defs = String::new();
     let mut body = String::new();
     for (i, ramp) in regions.ramps.iter().enumerate() {
@@ -67,8 +65,6 @@ pub fn render(regions: &Regions, opts: &Options) -> Output {
                 )
             })
             .collect();
-        // Cada geometría con su elemento: el degradado de una superficie redonda
-        // no es una función de la proyección sobre un eje y no cabe en el otro.
         defs.push_str(&match ramp.axis {
             Axis::Linear { from, to } => format!(
                 "    <linearGradient id=\"r{i}\" gradientUnits=\"userSpaceOnUse\" \
@@ -91,9 +87,6 @@ cx=\"{}\" cy=\"{}\" r=\"{}\">{stops}</radialGradient>\n",
             .iter()
             .map(|ring| fitted.ring_data(ring))
             .collect();
-        // Mismo criterio que en una región: el par-impar sólo hace falta si hay
-        // agujeros, y una figura de degradado los tiene en cuanto algo del dibujo
-        // cae dentro de la rampa.
         let rule = if ramp.rings.len() > 1 {
             " fill-rule=\"evenodd\""
         } else {
@@ -113,28 +106,115 @@ cx=\"{}\" cy=\"{}\" r=\"{}\">{stops}</radialGradient>\n",
     }
     body.insert_str(0, &head);
 
-    // Las regiones llegan con las de un color seguidas, así que basta con
-    // avanzar por tramos.
-    let mut i = 0;
-    while i < regions.regions.len() {
-        let color = regions.regions[i].color;
-        let end = regions.regions[i..]
-            .iter()
-            .position(|r| r.color != color)
-            .map_or(regions.regions.len(), |n| i + n);
+    let (reaches_transparent, depths) = if opts.layering {
+        (
+            find_transparent_regions(regions),
+            compute_region_depths(regions),
+        )
+    } else {
+        (Vec::new(), Vec::new())
+    };
 
-        let paths: Vec<String> = regions.regions[i..end]
+    let mut color_total_area = std::collections::HashMap::new();
+    for r in &regions.regions {
+        *color_total_area.entry(r.color).or_insert(0) += r.area;
+    }
+
+    let mut region_indices: Vec<usize> = (0..regions.regions.len()).collect();
+    if opts.layering {
+        region_indices.sort_by(|&a, &b| {
+            depths[a]
+                .cmp(&depths[b])
+                .then_with(|| {
+                    color_total_area[&regions.regions[b].color]
+                        .cmp(&color_total_area[&regions.regions[a].color])
+                })
+                .then_with(|| regions.regions[b].area.cmp(&regions.regions[a].area))
+        });
+    }
+
+    let mut i = 0;
+    while i < region_indices.len() {
+        let current_color = regions.regions[region_indices[i]].color;
+        let current_depth = if opts.layering {
+            depths[region_indices[i]]
+        } else {
+            0
+        };
+        let end = region_indices[i..]
             .iter()
-            .map(|region| {
-                total_subpaths += region.rings.len();
-                let d: String = region
+            .position(|&idx| {
+                regions.regions[idx].color != current_color
+                    || (opts.layering && depths[idx] != current_depth)
+            })
+            .map_or(region_indices.len(), |n| i + n);
+
+        let touches_transparent = opts.layering
+            && region_indices[i..end]
+                .iter()
+                .any(|&idx| reaches_transparent[idx] || current_color.a < 255);
+
+        let paths: Vec<String> = region_indices[i..end]
+            .iter()
+            .map(|&idx| {
+                let region = &regions.regions[idx];
+                let outer_idx = if opts.layering && region.rings.len() > 1 {
+                    let mut max_area = -1.0;
+                    let mut max_k = 0;
+                    for (k, ring) in region.rings.iter().enumerate() {
+                        let area = ring_area(ring, &regions.edges);
+                        if area > max_area {
+                            max_area = area;
+                            max_k = k;
+                        }
+                    }
+                    max_k
+                } else {
+                    0
+                };
+
+                let active_rings: Vec<&crate::region::Ring> = region
                     .rings
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(k, ring)| {
+                        if !opts.layering || region.rings.len() <= 1 || k == outer_idx {
+                            return Some(ring);
+                        }
+                        let mut touches_transparent = false;
+                        for &(edge_id, reversed) in ring {
+                            let edge = &regions.edges[edge_id];
+                            let inside_id = if reversed { Some(edge.left) } else { edge.right };
+                            match inside_id {
+                                None => {
+                                    touches_transparent = true;
+                                    break;
+                                }
+                                Some(other_id) => {
+                                    if other_id >= regions.regions.len()
+                                        || regions.regions[other_id].color.a < 255
+                                        || reaches_transparent[other_id]
+                                    {
+                                        touches_transparent = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        if touches_transparent {
+                            Some(ring)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                total_subpaths += active_rings.len();
+                let d: String = active_rings
                     .iter()
                     .map(|ring| fitted.ring_data(ring))
                     .collect();
-                // El relleno par-impar sólo hace falta cuando la región tiene
-                // agujeros, es decir, cuando trae más de un anillo.
-                let rule = if region.rings.len() > 1 {
+                let rule = if active_rings.len() > 1 {
                     " fill-rule=\"evenodd\""
                 } else {
                     ""
@@ -146,12 +226,24 @@ cx=\"{}\" cy=\"{}\" r=\"{}\">{stops}</radialGradient>\n",
 
         total_paths += paths.len();
 
-        let mut fill = format!(" fill=\"{}\"", color.to_hex());
-        if color.a < 255 {
+        let mut fill = format!(" fill=\"{}\"", current_color.to_hex());
+        if opts.layering && opts.fit.smooth() && !touches_transparent {
+            fill.push_str(&format!(
+                " stroke=\"{}\" stroke-width=\"1.5\" stroke-linejoin=\"round\" stroke-linecap=\"round\"",
+                current_color.to_hex()
+            ));
+        }
+        if current_color.a < 255 {
             fill.push_str(&format!(
                 " fill-opacity=\"{}\"",
-                trim_float(color.a as f64 / 255.0)
+                trim_float(current_color.a as f64 / 255.0)
             ));
+            if opts.layering {
+                fill.push_str(&format!(
+                    " stroke-opacity=\"{}\"",
+                    trim_float(current_color.a as f64 / 255.0)
+                ));
+            }
         }
 
         if paths.len() == 1 {
@@ -165,11 +257,6 @@ cx=\"{}\" cy=\"{}\" r=\"{}\">{stops}</radialGradient>\n",
         }
     }
 
-    // `crispEdges` apaga el suavizado, que es lo que quiere una escalera sobre
-    // coordenadas enteras: los bordes salen limpios en vez de medio grises. En
-    // cuanto hay un tramo oblicuo hace lo contrario —deja la diagonal
-    // escalonada, que es exactamente lo que el ajuste acaba de quitar—, así que
-    // depende del ajuste y no del documento.
     let rendering = if opts.fit.smooth() {
         ""
     } else {
@@ -190,6 +277,112 @@ viewBox=\"0 0 {w} {h}\"{rendering}>\n{body}</svg>\n",
         paths: total_paths,
         subpaths: total_subpaths,
     }
+}
+
+fn ring_area(ring: &crate::region::Ring, edges: &[crate::region::HalfEdge]) -> f64 {
+    let points = crate::region::chain(ring, |e| edges[e].points.as_slice());
+    if points.len() < 3 {
+        return 0.0;
+    }
+    let mut area = 0.0;
+    for i in 0..points.len() {
+        let j = (i + 1) % points.len();
+        area += f64::from(points[i].0) * f64::from(points[j].1);
+        area -= f64::from(points[j].0) * f64::from(points[i].1);
+    }
+    (area / 2.0).abs()
+}
+
+fn ring_outer_index(rings: &[crate::region::Ring], edges: &[crate::region::HalfEdge]) -> usize {
+    let mut max_area = -1.0;
+    let mut outer_idx = 0;
+    for (k, ring) in rings.iter().enumerate() {
+        let area = ring_area(ring, edges);
+        if area > max_area {
+            max_area = area;
+            outer_idx = k;
+        }
+    }
+    outer_idx
+}
+
+fn find_transparent_regions(regions: &Regions) -> Vec<bool> {
+    let mut reaches = vec![false; regions.regions.len()];
+    for (id, r) in regions.regions.iter().enumerate() {
+        if r.color.a < 255 {
+            reaches[id] = true;
+        }
+    }
+
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for (id, r) in regions.regions.iter().enumerate() {
+            if reaches[id] || r.rings.len() <= 1 {
+                continue;
+            }
+            let outer_idx = ring_outer_index(&r.rings, &regions.edges);
+            for (k, ring) in r.rings.iter().enumerate() {
+                if k == outer_idx {
+                    continue;
+                }
+                for &(edge_id, reversed) in ring {
+                    let edge = &regions.edges[edge_id];
+                    let inside_id = if reversed { Some(edge.left) } else { edge.right };
+                    match inside_id {
+                        None => {
+                            reaches[id] = true;
+                            changed = true;
+                            break;
+                        }
+                        Some(other_id) => {
+                            if other_id >= regions.regions.len() || reaches[other_id] {
+                                reaches[id] = true;
+                                changed = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if reaches[id] {
+                    break;
+                }
+            }
+        }
+    }
+    reaches
+}
+
+fn compute_region_depths(regions: &Regions) -> Vec<usize> {
+    let mut depths = vec![0; regions.regions.len()];
+
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for (i, region) in regions.regions.iter().enumerate() {
+            if region.rings.len() <= 1 {
+                continue;
+            }
+            let outer_idx = ring_outer_index(&region.rings, &regions.edges);
+            let parent_depth = depths[i];
+            for (k, ring) in region.rings.iter().enumerate() {
+                if k == outer_idx {
+                    continue;
+                }
+                for &(edge_id, reversed) in ring {
+                    let edge = &regions.edges[edge_id];
+                    let inside_id = if reversed { Some(edge.left) } else { edge.right };
+                    if let Some(child_id) = inside_id {
+                        if child_id < depths.len() && child_id != i && depths[child_id] <= parent_depth {
+                            depths[child_id] = parent_depth + 1;
+                            changed = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    depths
 }
 
 fn trim_float(v: f64) -> String {

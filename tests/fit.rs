@@ -672,6 +672,7 @@ fn convert_cluster_buf(w: u32, h: u32, buf: &[u8], fit: Fit) -> Conversion {
 
     let config = Config {
         fit,
+        layering: false,
         ..Config::cluster(ClusterOptions {
             // Sin filtrar: aquí se mira el ajuste, y con el umbral por defecto
             // un dibujo de este tamaño es todo motas.

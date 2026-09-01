@@ -72,12 +72,25 @@ pub use crate::segment::Grouping;
 /// regiones, y el **ajuste** cómo se pasa del contorno de una región a los datos
 /// de un `<path>`. Se combinan libremente: son etapas distintas del mismo
 /// proceso, no dos programas.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Config {
     pub segmentation: Segmentation,
     pub fit: Fit,
     /// Color de fondo opcional del SVG. No depende de ninguno de los dos ejes.
     pub background: Option<String>,
+    /// Superponer formas contenedoras como capas sólidas por debajo para eliminar grietas.
+    pub layering: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            segmentation: Segmentation::default(),
+            fit: Fit::default(),
+            background: None,
+            layering: false,
+        }
+    }
 }
 
 impl Config {
@@ -533,6 +546,7 @@ fn convert_grid(
             display: None,
             background: config.background.clone(),
             fit: config.fit,
+            layering: config.layering,
         },
     );
 
@@ -642,6 +656,7 @@ fn convert_cluster(
             display,
             background: config.background.clone(),
             fit: config.fit,
+            layering: config.layering,
         },
     );
 

@@ -347,6 +347,7 @@ fn el_documento_sale_valido() {
             display: None,
             background: None,
             fit: Fit::Pixel,
+            layering: false,
         },
     );
     assert!(out.svg.starts_with("<svg"));
@@ -406,4 +407,34 @@ fn una_imagen_grande_termina() {
     // Comprobar el área de todas las regiones de una imagen así es la prueba más
     // dura que hay a mano: cualquier error de topología en cualquiera salta.
     comprueba_areas(&r);
+}
+
+#[test]
+fn el_decoupage_conserva_geometria_y_elimina_lineas_blancas() {
+    let r = contornos(
+        &["RRRRR", "RRAAR", "RRAAR", "RRRRR"],
+        &[('R', ROJO), ('A', AZUL)],
+    );
+    let out_flat = svg::render(
+        &r,
+        &svg::Options {
+            pixel_size: 1,
+            display: None,
+            background: None,
+            fit: Fit::Pixel,
+            layering: false,
+        },
+    );
+    let out_layered = svg::render(
+        &r,
+        &svg::Options {
+            pixel_size: 1,
+            display: None,
+            background: None,
+            fit: Fit::Pixel,
+            layering: true,
+        },
+    );
+    assert!(out_flat.svg.contains("evenodd"));
+    assert!(!out_layered.svg.contains("evenodd"), "decoupage omite agujeros interiores sólidos bajo piezas superpuestas");
 }
