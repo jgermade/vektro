@@ -52,12 +52,18 @@ export function LightboxModal({ open, svg, meta, image, onClose, onDownload }) {
       if (!dialog.open) {
         dialog.showModal();
       }
+      document.body.style.overflow = "hidden";
     } else {
       resetZoomAndPan();
       if (dialog.open) {
         dialog.close();
       }
+      document.body.style.overflow = "";
     }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [open, svg, image]);
 
   useEffect(() => {
