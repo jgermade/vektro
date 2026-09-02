@@ -340,6 +340,7 @@ fn read_cluster_config(options: &JsValue) -> Config {
     Config {
         background: o.text("background"),
         fit: read_fit(&o),
+        decoupage: o.flag("decoupage").unwrap_or(false),
         ..Config::cluster(cluster)
     }
 }
@@ -362,6 +363,12 @@ export interface FitOptions {
      * Por omisión, 0.75 con `"polygon"` y 1.5 con `"spline"`.
      */
     fitTolerance?: number;
+    /**
+     * Découpage: dibujar cada figura entera y por debajo de las que se le ponen
+     * encima, para que la frontera compartida no deje costura al renderizar.
+     * Por omisión, `false`.
+     */
+    decoupage?: boolean;
 }
 "#;
 
@@ -483,6 +490,7 @@ fn read_config(options: &JsValue) -> Config {
     Config {
         background: o.text("background"),
         fit: read_fit(&o),
+        decoupage: o.flag("decoupage").unwrap_or(false),
         ..Config::grid(grid)
     }
 }

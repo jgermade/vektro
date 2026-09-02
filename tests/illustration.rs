@@ -396,30 +396,7 @@ fn el_subpixel_cuesta_bytes_y_compra_sitio() {
 /// resultado; esto dice si ha cambiado.
 #[test]
 fn las_curvas_se_quedan_donde_estan() {
-    let (w, h) = (72usize, 56usize);
-    let discos = [
-        (28.0f64, 28.0f64, 20.0f64, [200u8, 60, 60, 255]),
-        (46.0, 30.0, 18.0, [60, 110, 200, 255]),
-    ];
-    let mut buf = Vec::with_capacity(w * h * 4);
-    for y in 0..h {
-        for x in 0..w {
-            let mut color = [245u8, 245, 240, 255];
-            for &(cx, cy, r, c) in &discos {
-                if ((x as f64 - cx).powi(2) + (y as f64 - cy).powi(2)).sqrt() <= r {
-                    color = c;
-                }
-            }
-            buf.extend_from_slice(&color);
-        }
-    }
-
-    let config = Config {
-        fit: Fit::spline(),
-        ..Config::cluster(en_la_reticula())
-    };
-    let out = vektro::convert_rgba(w as u32, h as u32, &buf, &config)
-        .expect("la conversión no debe fallar");
+    let out = discos_con_curvas(false);
 
     // Contando comandos dentro de los `d`, no letras sueltas del documento: la
     // primera versión de esto miraba `svg.contains('c')`, y la `c` de «colores»
@@ -444,6 +421,75 @@ fn las_curvas_se_quedan_donde_estan() {
         "ilustracion-curvas",
         &out,
         &format!("dos discos, fit = spline (1.5), {curvas} curvas"),
+    );
+}
+
+/// Dos discos que se solapan, convertidos con curvas y con découpage o sin él.
+///
+/// Lo comparten dos instantáneas y por eso vive aquí: mirar la una contra la
+/// otra sólo dice algo si la entrada es exactamente la misma.
+fn discos_con_curvas(decoupage: bool) -> Conversion {
+    let (w, h) = (72usize, 56usize);
+    let discos = [
+        (28.0f64, 28.0f64, 20.0f64, [200u8, 60, 60, 255]),
+        (46.0, 30.0, 18.0, [60, 110, 200, 255]),
+    ];
+    let mut buf = Vec::with_capacity(w * h * 4);
+    for y in 0..h {
+        for x in 0..w {
+            let mut color = [245u8, 245, 240, 255];
+            for &(cx, cy, r, c) in &discos {
+                if ((x as f64 - cx).powi(2) + (y as f64 - cy).powi(2)).sqrt() <= r {
+                    color = c;
+                }
+            }
+            buf.extend_from_slice(&color);
+        }
+    }
+
+    let config = Config {
+        fit: Fit::spline(),
+        decoupage,
+        ..Config::cluster(en_la_reticula())
+    };
+    vektro::convert_rgba(w as u32, h as u32, &buf, &config).expect("la conversión no debe fallar")
+}
+
+/// El découpage sobre curvas, al lado de su versión plana.
+///
+/// Lo que hay que poder mirar en el diff es que **no se toca la forma de nada**:
+/// ni un `stroke`, ni una coordenada dilatada. Lo único que cambia es hasta
+/// dónde llega cada pieza por debajo de la que va encima, y por eso la
+/// instantánea va al lado de `ilustracion-curvas` en vez de sustituirla.
+#[test]
+fn el_decoupage_apila_sin_tocar_la_forma() {
+    let plano = discos_con_curvas(false);
+    let capas = discos_con_curvas(true);
+
+    assert_eq!(capas.paths, plano.paths, "las mismas figuras");
+    assert_eq!(capas.colors, plano.colors, "y la misma paleta");
+    assert_ne!(capas.svg, plano.svg, "y el apilado tiene que notarse");
+    assert!(
+        !capas.svg.contains("stroke"),
+        "el découpage no dilata nada, sólo apila"
+    );
+    // El fondo es la región más grande, así que va la primera y se lleva debajo
+    // a los dos discos: su figura pasa a ser el lienzo entero.
+    let primera = capas
+        .svg
+        .split("d=\"")
+        .nth(1)
+        .and_then(|rest| rest.split('"').next())
+        .expect("tiene que haber al menos un path");
+    assert!(
+        primera.contains("h72") || primera.contains("h-72"),
+        "la lámina de abajo tiene que llegar de lado a lado: {primera}"
+    );
+
+    check(
+        "ilustracion-curvas.decoupage",
+        &capas,
+        "dos discos, fit = spline (1.5), decoupage",
     );
 }
 

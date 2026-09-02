@@ -63,11 +63,22 @@ left.
 This happens after the palette step so a background left in several near-equal
 tones by compression still comes away in one piece.
 
-## 6. Tracing — [`src/trace.rs`](../src/trace.rs)
+## 6. Tracing — [`src/boundary.rs`](../src/boundary.rs)
 
-For each colour, the edges separating its pixels from everything else are
-collected with a consistent orientation — the interior always on the left of
-travel — and chained end to end until they close into loops.
+Every pixel gets the label of the region it belongs to, and then the grid of
+pixel corners is walked once: each unit segment that separates two different
+labels is a border, and the runs between junctions become half edges that know
+**which region sits on each side**. Each region's half edges are chained into
+loops with the interior always on the left of travel.
+
+Doing it once for the whole image, rather than tracing each region's own mask,
+is what makes a border between two neighbours **a single segment**. That matters
+downstream: [the fit](../src/fit.rs) then simplifies it once and both faces get
+identical geometry. Tracing each region separately simplified the same border
+twice with different results, and with `--fit polygon` or `--fit spline` the two
+faces drifted apart by up to the tolerance and the background showed through the
+gap. It is also a lot faster — one pass instead of one per region: a dense
+conversion with 121 000 paths went from 33 s to 7.5 s.
 
 Each loop is a subpath. Outlines and holes coexist in the same `<path>` thanks to
 `fill-rule="evenodd"`. Collinear vertices are dropped, so a rectangular region
@@ -77,8 +88,8 @@ Two different connectivities are in play on purpose:
 
 - **Grouping into regions uses 8-connectivity**, so a diagonal run of pixels —
   everywhere in pixel art — is one shape rather than a string of little squares.
-- **Tracing uses 4-connectivity** at the crossings, so those diagonal pixels get
-  separate loops. They still land in the same `<path>`.
+- **Chaining the loops uses 4-connectivity** at the crossings, so those diagonal
+  pixels get separate loops. They still land in the same `<path>`.
 
 ## The SVG it produces
 

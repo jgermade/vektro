@@ -504,6 +504,7 @@ kbd {
     z-index: 35;
     margin-left: -1.25rem;
     margin-right: -1.25rem;
+    width: calc(100% + 2.5rem);
   }
 
   .workspace-item-result .result-pane {
@@ -561,6 +562,7 @@ kbd {
     z-index: 30;
     margin-left: -1.25rem;
     margin-right: -1.25rem;
+    width: calc(100% + 2.5rem);
   }
 
   .workspace-item-hint .result-hint-card {
@@ -579,6 +581,7 @@ kbd {
   .workspace-item-controls {
     order: 4;
     margin-top: 5rem;
+    width: 100%;
   }
 
   .workspace-item-stats {
@@ -910,7 +913,7 @@ kbd {
 /* Fila de casillas de verificación compactas */
 .toggles-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.4rem;
   margin-bottom: 0.8rem;
   margin-top: 0.6rem;

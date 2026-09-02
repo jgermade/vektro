@@ -21,7 +21,8 @@
 //! ```
 
 pub mod background;
-#[cfg(feature = "illustration")]
+// Siempre: la rejilla también saca sus contornos por aquí, que es lo que hace
+// que sus fronteras se compartan y se ajusten una sola vez.
 pub mod boundary;
 pub mod centerline;
 pub mod checker;
@@ -72,12 +73,27 @@ pub use crate::segment::Grouping;
 /// regiones, y el **ajuste** cómo se pasa del contorno de una región a los datos
 /// de un `<path>`. Se combinan libremente: son etapas distintas del mismo
 /// proceso, no dos programas.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Config {
     pub segmentation: Segmentation,
     pub fit: Fit,
     /// Color de fondo opcional del SVG. No depende de ninguno de los dos ejes.
     pub background: Option<String>,
+    /// Recortar cada figura entera y meterla por debajo de lo que va encima,
+    /// para que la frontera compartida no deje costura. Ver [`svg`].
+    ///
+    pub decoupage: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            segmentation: Segmentation::default(),
+            fit: Fit::default(),
+            background: None,
+            decoupage: false,
+        }
+    }
 }
 
 impl Config {
@@ -533,6 +549,7 @@ fn convert_grid(
             display: None,
             background: config.background.clone(),
             fit: config.fit,
+            decoupage: config.decoupage,
         },
     );
 
@@ -642,6 +659,7 @@ fn convert_cluster(
             display,
             background: config.background.clone(),
             fit: config.fit,
+            decoupage: config.decoupage,
         },
     );
 

@@ -347,6 +347,7 @@ fn el_documento_sale_valido() {
             display: None,
             background: None,
             fit: Fit::Pixel,
+            decoupage: false,
         },
     );
     assert!(out.svg.starts_with("<svg"));
@@ -406,4 +407,101 @@ fn una_imagen_grande_termina() {
     // Comprobar el área de todas las regiones de una imagen así es la prueba más
     // dura que hay a mano: cualquier error de topología en cualquiera salta.
     comprueba_areas(&r);
+}
+
+/// Lo que promete el découpage: cada figura se dibuja entera y por debajo de la
+/// que se le pone encima.
+///
+/// El dibujo es una tira de cuatro píxeles con tres rojos y uno azul. Sin
+/// découpage salen dos rectángulos pegados, y la frontera entre ellos deja la
+/// costura. Con découpage el rojo —que es el grande, así que va debajo— tiene
+/// que cubrir **la tira entera**, con el azul encima: es lo único que pone color
+/// sólido bajo el borde antialiaseado del azul.
+#[test]
+fn el_decoupage_mete_la_pieza_de_abajo_bajo_la_de_arriba() {
+    let r = contornos(&["RRRA"], &[('R', ROJO), ('A', AZUL)]);
+    assert_eq!(r.regions.len(), 2, "el dibujo tiene que dar dos regiones");
+
+    let plano = documento(&r, false);
+    let capas = documento(&r, true);
+
+    // Sin découpage el rojo se queda en sus tres píxeles.
+    assert!(
+        plano.contains("d=\"M3 0h-3v1h3z\""),
+        "el rojo pegado no llega más allá de su frontera:\n{plano}"
+    );
+    // Con découpage llega hasta el borde de la tira, por debajo del azul.
+    assert!(
+        capas.contains("d=\"M0 0v1h4v-1z\""),
+        "el rojo tiene que extenderse bajo el azul:\n{capas}"
+    );
+    // Y el azul sigue siendo el mismo cuadrado en los dos.
+    assert!(
+        plano.contains("d=\"M3 1h1v-1h-1z\"") && capas.contains("d=\"M3 1h1v-1h-1z\""),
+        "el azul no cambia de forma:\n{capas}"
+    );
+    // Y ni una dilatación: el découpage no toca la geometría de nadie.
+    assert!(
+        !capas.contains("stroke"),
+        "el découpage no dilata:\n{capas}"
+    );
+}
+
+/// Que los degradados no descoloquen el apilado.
+///
+/// Fundir un grupo de bandas saca regiones de la lista y corre los índices de
+/// las que quedan, mientras los tramos siguen nombrando los de antes. Si el
+/// découpage leyera unos por otros, saldrían figuras con el color cambiado; lo
+/// que se comprueba es que el documento sigue teniendo los colores del dibujo y
+/// que ninguna cara sale vacía.
+#[test]
+fn el_decoupage_sobrevive_a_que_un_degradado_se_lleve_bandas() {
+    let mut r = contornos(
+        &["RRGGAA", "RRGGAA", "RRGGAA", "MMMMMM"],
+        &[('R', ROJO), ('G', VERDE), ('A', AZUL), ('M', AMARILLO)],
+    );
+    // Un degradado a mano: se lleva la primera región y deja las demás
+    // corridas, que es exactamente la situación que rompía los índices.
+    let llevada = 0;
+    r.ramps = vec![vektro::region::Ramp {
+        rings: r.regions[llevada].rings.clone(),
+        axis: vektro::region::Axis::Linear {
+            from: (0.0, 0.0),
+            to: (6.0, 0.0),
+        },
+        stops: vec![(0.0, ROJO), (1.0, VERDE)],
+        bands: 1,
+    }];
+    r.moved = (0..r.regions.len())
+        .map(|id| match id.cmp(&llevada) {
+            std::cmp::Ordering::Less => vektro::region::Moved::Region(id),
+            std::cmp::Ordering::Equal => vektro::region::Moved::Ramp(0),
+            std::cmp::Ordering::Greater => vektro::region::Moved::Region(id - 1),
+        })
+        .collect();
+    r.regions.remove(llevada);
+
+    let capas = documento(&r, true);
+    for region in &r.regions {
+        assert!(
+            capas.contains(&region.color.to_hex()),
+            "falta el color {} en:\n{capas}",
+            region.color.to_hex()
+        );
+    }
+    assert!(!capas.contains("d=\"\""), "cara vacía en:\n{capas}");
+}
+
+fn documento(regions: &Regions, decoupage: bool) -> String {
+    svg::render(
+        regions,
+        &svg::Options {
+            pixel_size: 1,
+            display: None,
+            background: None,
+            fit: Fit::Pixel,
+            decoupage,
+        },
+    )
+    .svg
 }

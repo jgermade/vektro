@@ -13,6 +13,11 @@ export const FIT_TOLERANCE = { polygon: 0.75, spline: 1.5 };
 
 export const FIT_OPTIONS = [
   {
+    value: "pixel",
+    label: "Escalón",
+    hint: "Sin simplificación de contorno; conserva la escalera de píxeles.",
+  },
+  {
     value: "polygon",
     label: "Polígono",
     hint: "Junta en un tramo recto los escalones planos de color.",
@@ -21,11 +26,6 @@ export const FIT_OPTIONS = [
     value: "spline",
     label: "Curva suave",
     hint: "Redondea las formas del dibujo con trazos Bézier lisos.",
-  },
-  {
-    value: "pixel",
-    label: "Escalón",
-    hint: "Sin simplificación de contorno; conserva la escalera de píxeles.",
   },
 ];
 
@@ -77,6 +77,11 @@ export const MODES = {
       mergeColors: false,
       fit: "pixel",
       fitTolerance: 0.75,
+      // Encendido de partida. En pixel art la frontera entre dos colores está
+      // por todas partes y es lo primero que se ve mal, así que se prefiere
+      // pagar el ~23% de fichero a que salgan líneas claras. En ilustración va
+      // al revés: hay muchas menos fronteras y el documento pesa bastante más.
+      decoupage: true,
     },
     options(v) {
       const opts = {
@@ -85,6 +90,7 @@ export const MODES = {
         removeCheckerboard: v.removeChecker,
         removeBackground: v.removeBackground,
         mergeColors: v.mergeColors,
+        decoupage: v.decoupage,
         ...fitOptions(v),
       };
       if (Number(v.scale) >= 1) opts.scale = Number(v.scale);
@@ -142,10 +148,8 @@ export const MODES = {
       // wasm va en tanto por uno.
       minColorShare: 0.2,
       gradientStep: 0.05,
-      // A diferencia de pixelart, aquí no hay ninguna escalera que preservar
-      // —sólo la de la retícula—, y enderezarla quita entre un 23% y un 32% del
-      // fichero sin que se note en el dibujo.
-      fit: "polygon",
+      // Curva suave por defecto para ilustraciones.
+      fit: "spline",
       // La de fábrica, y no una más estrecha: la escala de trabajo lleva el rasgo
       // pequeño a tres píxeles, y ahí los escalones de la retícula —0.5 y
       // raíz(2)/2, donde una escalera de 45 grados colapsa en su diagonal y una
@@ -162,6 +166,7 @@ export const MODES = {
       alpha: 128,
       useBackground: false,
       background: "#ffffff",
+      decoupage: false,
     },
     options(v) {
       const opts = {
@@ -175,6 +180,7 @@ export const MODES = {
         colorPrecision: v.colorPrecision,
         alphaThreshold: v.alpha,
         removeBackground: v.removeBackground,
+        decoupage: v.decoupage,
         ...fitOptions(v),
       };
       // Ausente quiere decir automático, así que sólo se manda cuando el

@@ -51,6 +51,19 @@ struct Common {
     #[arg(short, long)]
     background: Option<String>,
 
+    /// Dibuja cada figura entera y por debajo de las que se le ponen encima.
+    ///
+    /// La frontera entre dos formas pegadas reparte la cobertura del píxel
+    /// entre las dos, y sobre el lienzo vacío eso deja un pelo más claro por
+    /// todo el borde. Con découpage la de abajo se extiende bajo la de arriba,
+    /// así que el borde mezcla los dos colores que de verdad se tocan y la
+    /// costura desaparece, sin tocar la geometría de ninguna.
+    ///
+    /// Con `--fit pixel` no hace falta: los bordes caen en coordenadas enteras
+    /// y no hay costura. Es con `--fit polygon` y `--fit spline` donde vale.
+    #[arg(long)]
+    decoupage: bool,
+
     /// Cómo se convierte el contorno de una región en datos de path.
     ///
     /// Por defecto, `pixel` en pixelart y `polygon` en illustration, que es lo
@@ -174,6 +187,7 @@ impl Pixelart {
         };
         Config {
             background: self.common.background.clone(),
+            decoupage: self.common.decoupage,
             // La escalera de un sprite es el dibujo, no un artefacto. Y si aquí
             // se pide polígono, una unidad es un píxel *del dibujo*, no de la
             // imagen: los rasgos miden lo que tienen que medir y `Fit::TOLERANCE`
@@ -380,6 +394,7 @@ impl Illustration {
         };
         Config {
             background: self.common.background.clone(),
+            decoupage: self.common.decoupage,
             // Aquí la escalera es sólo la retícula de píxeles y enderezarla no
             // cuesta dibujo. La tolerancia es la de fábrica y no una más estrecha
             // porque la escala de trabajo lleva el rasgo pequeño a

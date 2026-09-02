@@ -6,9 +6,10 @@
 
 use std::collections::HashMap;
 
+use crate::boundary;
 use crate::color::Rgba;
 use crate::grid::PixelMap;
-use crate::region::{HalfEdge, Region, Regions};
+use crate::region::{Region, Regions};
 use crate::trace;
 
 /// Qué cuenta como una región.
@@ -29,6 +30,14 @@ pub enum Grouping {
 /// Las regiones salen en orden de emisión: los colores más presentes primero
 /// —así los paths grandes quedan al fondo del documento— y, dentro de un color,
 /// por posición del primer píxel del bloque.
+///
+/// El contorno lo saca [`crate::boundary`], igual que el del clustering: se
+/// etiqueta cada píxel con su región y se recorren las grietas una sola vez. Lo
+/// que se gana con eso es que **la frontera entre dos vecinas es un solo tramo**,
+/// así que el ajuste la ajusta una vez y las dos caras reciben lo mismo. Trazar
+/// cada región por su cuenta, que es lo que se hacía antes, la ajustaba dos
+/// veces con resultados distintos, y con `--fit polygon` o `--fit spline` las
+/// dos caras se separaban hasta la tolerancia y entre ellas asomaba el fondo.
 pub fn from_pixel_map(map: &PixelMap, grouping: Grouping) -> Regions {
     let mut order: Vec<Rgba> = Vec::new();
     let mut counts: HashMap<Rgba, usize> = HashMap::new();
@@ -40,10 +49,10 @@ pub fn from_pixel_map(map: &PixelMap, grouping: Grouping) -> Regions {
     }
     order.sort_by(|a, b| counts[b].cmp(&counts[a]).then(a.to_hex().cmp(&b.to_hex())));
 
-    let mut regions: Vec<Region> = Vec::new();
-    let mut edges: Vec<HalfEdge> = Vec::new();
-    let mut scratch = vec![false; map.pixels.len()];
-
+    // Una etiqueta por región, en el orden de emisión: se recorren los colores
+    // ya ordenados y, dentro de cada uno, sus bloques por el primer píxel.
+    let mut labels = vec![boundary::NONE; map.pixels.len()];
+    let mut found: Vec<(Rgba, usize)> = Vec::new();
     for color in order {
         let mask: Vec<bool> = map
             .pixels
@@ -51,55 +60,31 @@ pub fn from_pixel_map(map: &PixelMap, grouping: Grouping) -> Regions {
             .map(|p| p.as_ref() == Some(&color))
             .collect();
 
-        // Cada entrada es (área, bucles del contorno).
-        let blocks: Vec<(usize, Vec<Vec<trace::Point>>)> = match grouping {
-            Grouping::Color => {
-                vec![(counts[&color], trace::trace(&mask, map.width, map.height))]
-            }
-            Grouping::Region => trace::components(&mask, map.width, map.height)
-                .into_iter()
-                .map(|block| {
-                    for &i in &block {
-                        scratch[i] = true;
-                    }
-                    let loops = trace::trace(&scratch, map.width, map.height);
-                    for &i in &block {
-                        scratch[i] = false;
-                    }
-                    (block.len(), loops)
-                })
-                .collect(),
+        let blocks: Vec<Vec<usize>> = match grouping {
+            // Un color, una región: todos sus bloques bajo la misma etiqueta, y
+            // el contorno saldrá con un anillo por bloque.
+            Grouping::Color => vec![(0..mask.len()).filter(|&i| mask[i]).collect()],
+            Grouping::Region => trace::components(&mask, map.width, map.height),
         };
 
-        for (area, loops) in blocks {
-            if loops.is_empty() {
+        for block in blocks {
+            if block.is_empty() {
                 continue;
             }
-            let id = regions.len();
-            let rings = loops
-                .into_iter()
-                .map(|mut points| {
-                    // `trace` devuelve el bucle sin repetir el punto de partida;
-                    // el tramo sí lo repite, que es como se distingue un tramo
-                    // cerrado de uno con dos puntas. `ring_points` lo descarta
-                    // otra vez, así que el dibujo no cambia.
-                    points.push(points[0]);
-                    edges.push(HalfEdge {
-                        points,
-                        // La rejilla no tiene borde subpíxel que buscar: sus
-                        // píxeles son los del dibujo, y la escalera es el dibujo.
-                        offsets: Vec::new(),
-                        left: id,
-                        // La rejilla traza cada región por su cuenta, así que no
-                        // hay tramos compartidos que anotar.
-                        right: None,
-                    });
-                    vec![(edges.len() - 1, false)]
-                })
-                .collect();
-            regions.push(Region { color, area, rings });
+            let id = found.len() as u32;
+            for &i in &block {
+                labels[i] = id;
+            }
+            found.push((color, block.len()));
         }
     }
+
+    let (edges, rings) = boundary::from_labels(map.width, map.height, &labels, found.len());
+    let regions = found
+        .into_iter()
+        .zip(rings)
+        .map(|((color, area), rings)| Region { color, area, rings })
+        .collect();
 
     Regions {
         width: map.width,
@@ -110,5 +95,6 @@ pub fn from_pixel_map(map: &PixelMap, grouping: Grouping) -> Regions {
         // no una rampa continua repartida en escalones por la tolerancia.
         ramps: Vec::new(),
         edges,
+        moved: Vec::new(),
     }
 }

@@ -5,8 +5,8 @@
   offset      1.128, 2.093
   colores     1605
   paths       3728
-  subtrazados 4010
+  subtrazados 4018
   damero      no
   fondo       no
 -->
-<svg-fnv>482e151060f0627f</svg-fnv>  <!-- 155399 bytes -->
+<svg-fnv>967a0c8cf242c9df</svg-fnv>  <!-- 155581 bytes -->

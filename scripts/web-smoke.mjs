@@ -215,6 +215,18 @@ for (const { nombre, convert } of casos) {
   comprueba(/c[-\d]/.test(curvo.svg), "fit: spline emite curvas");
   curvo.free();
 
+  // El découpage apila cada figura por debajo de la que se le pone encima, y
+  // las dos segmentaciones lo pueden hacer porque las dos sacan cada frontera
+  // una sola vez. Si la clave no llegara, el documento saldría igual.
+  const recortado = convert({ fit: "polygon", fitTolerance: 1, decoupage: true });
+  const pegado = convert({ fit: "polygon", fitTolerance: 1 });
+  comprueba(
+    recortado.svg !== pegado.svg,
+    "decoupage llega y apila las capas",
+  );
+  pegado.free();
+  recortado.free();
+
   base.free();
   ajustado.free();
 }
