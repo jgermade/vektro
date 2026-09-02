@@ -24,7 +24,7 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
     relax: "Lima los peldaños irregulares moviendo vértices sin tocar las esquinas.",
     ramps: "Funde las bandas de color en figuras con degradado lineal.",
     removeBackground: "Vacía lo que toca el borde de la imagen. El mismo color encerrado dentro se conserva.",
-    layering: "Añade un solapamiento en las fronteras de color para eliminar las líneas blancas sin alterar la geometría de las formas.",
+    decoupage: "Dibuja cada figura entera y por debajo de las que se le ponen encima, como las capas de un recorte de papel. Quita las líneas claras de las fronteras sin tocar la forma de nada; a cambio el SVG ocupa algo más.",
     minColorShare: "Lo que un color tiene que valer para llevarse una entrada de la paleta.",
     minThickness: "Quita las bandas de un píxel que bordean cada frontera de color. En automático protege líneas finas.",
     colorPrecision: "Bits por canal antes de agrupar; baja el ruido del último bit.",
@@ -83,13 +83,13 @@ export function IllustrationPanel({ hidden, values: v, onChange }) {
 
         <label
           class="toggle-card"
-          data-hint={HINTS.layering}
-          onMouseEnter={() => setHint(HINTS.layering)}
-          onFocusCapture={() => setHint(HINTS.layering)}
-          onClick={() => setHint(HINTS.layering)}
-          onTouchStart={() => setHint(HINTS.layering)}
+          data-hint={HINTS.decoupage}
+          onMouseEnter={() => setHint(HINTS.decoupage)}
+          onFocusCapture={() => setHint(HINTS.decoupage)}
+          onClick={() => setHint(HINTS.decoupage)}
+          onTouchStart={() => setHint(HINTS.decoupage)}
         >
-          <Check checked={v.layering} onChange={set("layering")} />
+          <Check checked={v.decoupage} onChange={set("decoupage")} />
           <span>Découpage</span>
         </label>
 

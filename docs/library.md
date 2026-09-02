@@ -28,6 +28,7 @@ pub struct Config {
     pub segmentation: Segmentation,   // Grid(GridOptions) | Cluster(ClusterOptions)
     pub fit: Fit,                     // Pixel | Polygon { tolerance }
     pub background: Option<String>,   // belongs to neither axis
+    pub decoupage: bool,              // stack the shapes instead of butting them
 }
 ```
 
@@ -55,6 +56,13 @@ let config = Config::cluster(ClusterOptions {
     ..ClusterOptions::default()
 });
 ```
+
+`decoupage` draws every shape whole and underneath the ones above it, so the
+antialiased edge of the top shape blends into solid colour instead of the empty
+canvas — which is what removes the hairline seam along a shared border. Both
+segmentations support it; it is only worth turning on when the contour is
+simplified, since `Fit::Pixel` lands on integer coordinates and leaves no seam.
+See [the CLI notes](cli.md#--decoupage).
 
 ### `GridOptions`
 

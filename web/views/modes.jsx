@@ -77,7 +77,11 @@ export const MODES = {
       mergeColors: false,
       fit: "pixel",
       fitTolerance: 0.75,
-      layering: true,
+      // Encendido de partida. En pixel art la frontera entre dos colores está
+      // por todas partes y es lo primero que se ve mal, así que se prefiere
+      // pagar el ~23% de fichero a que salgan líneas claras. En ilustración va
+      // al revés: hay muchas menos fronteras y el documento pesa bastante más.
+      decoupage: true,
     },
     options(v) {
       const opts = {
@@ -86,7 +90,7 @@ export const MODES = {
         removeCheckerboard: v.removeChecker,
         removeBackground: v.removeBackground,
         mergeColors: v.mergeColors,
-        layering: v.layering,
+        decoupage: v.decoupage,
         ...fitOptions(v),
       };
       if (Number(v.scale) >= 1) opts.scale = Number(v.scale);
@@ -162,7 +166,7 @@ export const MODES = {
       alpha: 128,
       useBackground: false,
       background: "#ffffff",
-      layering: false,
+      decoupage: false,
     },
     options(v) {
       const opts = {
@@ -176,7 +180,7 @@ export const MODES = {
         colorPrecision: v.colorPrecision,
         alphaThreshold: v.alpha,
         removeBackground: v.removeBackground,
-        layering: v.layering,
+        decoupage: v.decoupage,
         ...fitOptions(v),
       };
       // Ausente quiere decir automático, así que sólo se manda cuando el

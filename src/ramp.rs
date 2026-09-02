@@ -117,7 +117,7 @@ use std::rc::Rc;
 
 use crate::cluster::NONE;
 use crate::color::{Oklab, Rgba};
-use crate::region::{Axis, EdgeId, Ramp, RegionId, Regions};
+use crate::region::{Axis, EdgeId, Moved, Ramp, RegionId, Regions};
 
 /// Cuánto puede apartarse el degradado del color plano de una banda, en múltiplos
 /// de `tolerance`.
@@ -355,6 +355,25 @@ pub fn merge(regions: &mut Regions, labels: &[u32], tolerance: f64, soft: &[bool
     if found.is_empty() {
         return;
     }
+
+    // Sacar bandas de `regions` corre los índices de las que quedan, y los
+    // `left`/`right` de los tramos siguen nombrando los de antes. La tabla dice
+    // a dónde ha ido cada una, para que leer un tramo después de esto siga
+    // valiendo. Ver [`Regions::moved`].
+    let mut moved: Vec<Option<Moved>> = vec![None; regions.regions.len()];
+    for (r, (group, _)) in found.iter().enumerate() {
+        for &id in group {
+            moved[id] = Some(Moved::Ramp(r));
+        }
+    }
+    let mut next = 0;
+    for slot in moved.iter_mut() {
+        if slot.is_none() {
+            *slot = Some(Moved::Region(next));
+            next += 1;
+        }
+    }
+    regions.moved = moved.into_iter().flatten().collect();
 
     // Las figuras se arman con `regions.edges` todavía intacto, así que hasta
     // aquí no se toca nada de lo que dependen. El modelo de cada grupo ya viene
@@ -1229,7 +1248,7 @@ fn shape(regions: &Regions, group: &[RegionId], bands: &[Band], fit: &Fit) -> Ra
     };
 
     Ramp {
-        rings: crate::boundary::rings(&regions.edges, &uses),
+        rings: crate::region::rings(&regions.edges, &uses),
         axis,
         stops: fit
             .stops

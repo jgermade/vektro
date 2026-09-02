@@ -25,7 +25,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
     mergeColors: "Ocupa menos, pero cada figura del SVG pasa a ser todo lo que comparte color, esté donde esté.",
     fit: "En pixel art la escalera es el dibujo, así que lo normal es dejarla. El polígono endereza las diagonales y las curvas redondean el sprite.",
     fitTolerance: "Cuánto puede apartarse la línea del contorno original.",
-    layering: "Añade un solapamiento en las fronteras de color para eliminar las líneas blancas sin alterar la geometría de las formas.",
+    decoupage: "Dibuja cada figura entera y por debajo de las que se le ponen encima, como las capas de un recorte de papel. Con el contorno en Escalón no hace falta —los bordes caen en la retícula—, pero con Polígono o Curva suave es lo que quita las líneas claras de las fronteras.",
   };
 
   const setHint = (text) => {
@@ -66,13 +66,13 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
 
         <label
           class="toggle-card"
-          data-hint={HINTS.layering}
-          onMouseEnter={() => setHint(HINTS.layering)}
-          onFocusCapture={() => setHint(HINTS.layering)}
-          onClick={() => setHint(HINTS.layering)}
-          onTouchStart={() => setHint(HINTS.layering)}
+          data-hint={HINTS.decoupage}
+          onMouseEnter={() => setHint(HINTS.decoupage)}
+          onFocusCapture={() => setHint(HINTS.decoupage)}
+          onClick={() => setHint(HINTS.decoupage)}
+          onTouchStart={() => setHint(HINTS.decoupage)}
         >
-          <Check checked={v.layering} onChange={set("layering")} />
+          <Check checked={v.decoupage} onChange={set("decoupage")} />
           <span>Découpage</span>
         </label>
 
@@ -116,7 +116,7 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
         </Row>
         <NumberInput
           min="1"
-          step="0.01"
+          step="0.5"
           value={v.scale}
           disabled={v.autoScale}
           onChange={set("scale")}

@@ -11,8 +11,12 @@ export interface FitOptions {
      * Por omisión, 0.75 con `"polygon"` y 1.5 con `"spline"`.
      */
     fitTolerance?: number;
-    /** Superponer formas contenedoras como capas sólidas por debajo. */
-    layering?: boolean;
+    /**
+     * Découpage: dibujar cada figura entera y por debajo de las que se le ponen
+     * encima, para que la frontera compartida no deje costura al renderizar.
+     * Por omisión, `false`.
+     */
+    decoupage?: boolean;
 }
 
 
@@ -92,8 +96,6 @@ export interface PixelOptions extends FitOptions {
     removeBackground?: boolean;
     /** Fondo impuesto, en hexadecimal, en vez del detectado. */
     background?: string;
-    /** Superponer formas contenedoras como capas sólidas por debajo. */
-    layering?: boolean;
 }
 
 

@@ -12,10 +12,12 @@
 //! coordenadas enteras eso da igual, pero con Béziers no, y el tipo tiene que
 //! estar antes de escribir los ajustadores.
 //!
-//! La segmentación por rejilla, hoy, deja `right` en `None`: sus regiones se
-//! trazan cada una por su cuenta y no comparten geometría. Rellenarlo es trabajo
-//! de la segmentación por clustering, que además lo necesita para saber en qué
+//! Las dos segmentaciones lo rellenan, y las dos por el mismo sitio
+//! ([`crate::boundary`]): se etiqueta cada píxel con su región y se recorren las
+//! grietas una sola vez. El clustering además lo necesita para saber en qué
 //! vecina fundir una mota.
+
+use std::collections::HashMap;
 
 use crate::color::Rgba;
 use crate::trace::Point;
@@ -137,12 +139,44 @@ pub struct Regions {
     /// llevó **ya no están** en `regions`.
     pub ramps: Vec<Ramp>,
     pub edges: Vec<HalfEdge>,
+    /// A dónde ha ido a parar cada región de las que nombran los tramos, o
+    /// **vacío** si nadie las ha movido, que quiere decir la identidad.
+    ///
+    /// Los `left`/`right` de un tramo se fijan al segmentar y ya no cambian,
+    /// pero `regions` sí: fundir un grupo de bandas en un degradado
+    /// ([`crate::ramp::merge`]) las saca de la lista y corre los índices de las
+    /// que quedan. Sin esta tabla, quien lea un tramo después de eso estaría
+    /// mirando otra región —o una que ya no está—, que es justo el error que no
+    /// se ve hasta que el dibujo sale con los colores cambiados.
+    pub moved: Vec<Moved>,
+}
+
+/// Dónde acabó una región de las que nombran los tramos.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Moved {
+    /// Sigue dibujándose por su cuenta, ahora en `regions[.0]`.
+    Region(RegionId),
+    /// Se la llevó `ramps[.0]`, y ya no se dibuja aparte.
+    Ramp(usize),
 }
 
 impl Regions {
     /// Encadena los puntos de un anillo tal como salieron de la segmentación.
     pub fn ring_points(&self, ring: &Ring) -> Vec<Point> {
         chain(ring, |edge| self.edges[edge].points.as_slice())
+    }
+
+    /// Qué se dibuja hoy al lado de un tramo que nombra a `id`, o `None` si por
+    /// ahí no hay nada: el exterior, o lo transparente.
+    ///
+    /// Se le pasa el `right` de un tramo tal cual, que ya es `Option`, y el
+    /// `left` envuelto en `Some`: los dos lados se preguntan igual.
+    pub fn drawn_at(&self, id: Option<RegionId>) -> Option<Moved> {
+        let id = id?;
+        if self.moved.is_empty() {
+            return Some(Moved::Region(id));
+        }
+        self.moved.get(id).copied()
     }
 }
 
@@ -212,4 +246,130 @@ pub fn chain<'a, T: Chainable + 'a>(ring: &Ring, items: impl Fn(EdgeId) -> &'a [
         out[0] = last.join(out[0]);
     }
     out
+}
+
+/// Reparte los tramos de una cara en anillos cerrados.
+///
+/// «Cara» y no «región» a propósito: lo único que se le pide a `uses` es que sean
+/// los tramos de una figura, cada uno orientado con la figura a su izquierda. Con
+/// eso vale igual para el contorno de una región que para el de la **unión** de
+/// varias —quitando los tramos que quedan por dentro—, que es de lo que vive
+/// [`crate::ramp`] y por lo que fundir un grupo de bandas no necesita ni un
+/// recorte de polígonos.
+pub fn rings(edges: &[HalfEdge], uses: &[(EdgeId, bool)]) -> Vec<Ring> {
+    let mut by_start: HashMap<Point, Vec<usize>> = HashMap::new();
+    for (i, &u) in uses.iter().enumerate() {
+        by_start.entry(start_of(edges, u)).or_default().push(i);
+    }
+
+    let mut done = vec![false; uses.len()];
+    let mut out = Vec::new();
+    for seed in 0..uses.len() {
+        if done[seed] {
+            continue;
+        }
+        let mut ring: Ring = Vec::new();
+        let opening = start_of(edges, uses[seed]);
+        let mut i = seed;
+        loop {
+            done[i] = true;
+            ring.push(uses[i]);
+            let end = end_of(edges, uses[i]);
+            // El anillo se cierra al volver a donde empezó, y ahí se corta aunque
+            // queden tramos sin usar que salgan de este mismo punto. Seguir
+            // enganchándolos daría un anillo en forma de ocho: es lo que pasa con
+            // dos trozos de la misma región que sólo se tocan por una esquina, que
+            // son dos cadenas cerradas distintas y las dos empiezan y acaban ahí.
+            // El relleno par-impar pintaría igual el ocho, pero cada trozo tiene
+            // que ser su propio anillo para que un ajustador de curvas pueda
+            // cerrar cada uno por su cuenta.
+            if end == opening {
+                break;
+            }
+            let incoming = last_step(edges, uses[i]);
+            // En una esquina donde la región se toca consigo misma salen dos
+            // continuaciones. Se prefiere el giro más cerrado a la izquierda,
+            // igual que en `trace::pick_next`: eso separa los píxeles que sólo se
+            // tocan en diagonal en anillos distintos, que es lo que hace que el
+            // relleno par-impar los pinte bien.
+            let next = by_start.get(&end).and_then(|candidates| {
+                candidates
+                    .iter()
+                    .copied()
+                    .filter(|&c| !done[c])
+                    .min_by_key(|&c| turn(incoming, first_step(edges, uses[c])))
+            });
+            match next {
+                Some(next) => i = next,
+                // No debería pasar: el contorno de una cara son curvas cerradas,
+                // así que desde cualquier tramo se vuelve al principio.
+                None => {
+                    debug_assert!(false, "anillo abierto en {end:?}");
+                    break;
+                }
+            }
+        }
+        out.push(ring);
+    }
+    out
+}
+
+fn start_of(edges: &[HalfEdge], (edge, reversed): (EdgeId, bool)) -> Point {
+    let points = &edges[edge].points;
+    if reversed {
+        points[points.len() - 1]
+    } else {
+        points[0]
+    }
+}
+
+fn end_of(edges: &[HalfEdge], (edge, reversed): (EdgeId, bool)) -> Point {
+    let points = &edges[edge].points;
+    if reversed {
+        points[0]
+    } else {
+        points[points.len() - 1]
+    }
+}
+
+/// El primer paso del tramo tal como se recorre.
+fn first_step(edges: &[HalfEdge], (edge, reversed): (EdgeId, bool)) -> Point {
+    let points = &edges[edge].points;
+    let n = points.len();
+    if reversed {
+        delta(points[n - 1], points[n - 2])
+    } else {
+        delta(points[0], points[1])
+    }
+}
+
+/// El último paso del tramo tal como se recorre.
+fn last_step(edges: &[HalfEdge], (edge, reversed): (EdgeId, bool)) -> Point {
+    let points = &edges[edge].points;
+    let n = points.len();
+    if reversed {
+        delta(points[1], points[0])
+    } else {
+        delta(points[n - 2], points[n - 1])
+    }
+}
+
+fn delta(a: Point, b: Point) -> Point {
+    (b.0 - a.0, b.1 - a.1)
+}
+
+/// Cuánto gira una continuación respecto a lo que se traía: la izquierda
+/// primero. Mismo criterio que [`crate::trace`].
+fn turn(incoming: Point, outgoing: Point) -> u8 {
+    let left = (incoming.1, -incoming.0);
+    let right = (-incoming.1, incoming.0);
+    if outgoing == left {
+        0
+    } else if outgoing == incoming {
+        1
+    } else if outgoing == right {
+        2
+    } else {
+        3
+    }
 }

@@ -21,7 +21,8 @@
 //! ```
 
 pub mod background;
-#[cfg(feature = "illustration")]
+// Siempre: la rejilla también saca sus contornos por aquí, que es lo que hace
+// que sus fronteras se compartan y se ajusten una sola vez.
 pub mod boundary;
 pub mod centerline;
 pub mod checker;
@@ -78,8 +79,10 @@ pub struct Config {
     pub fit: Fit,
     /// Color de fondo opcional del SVG. No depende de ninguno de los dos ejes.
     pub background: Option<String>,
-    /// Superponer formas contenedoras como capas sólidas por debajo para eliminar grietas.
-    pub layering: bool,
+    /// Recortar cada figura entera y meterla por debajo de lo que va encima,
+    /// para que la frontera compartida no deje costura. Ver [`svg`].
+    ///
+    pub decoupage: bool,
 }
 
 impl Default for Config {
@@ -88,7 +91,7 @@ impl Default for Config {
             segmentation: Segmentation::default(),
             fit: Fit::default(),
             background: None,
-            layering: false,
+            decoupage: false,
         }
     }
 }
@@ -546,7 +549,7 @@ fn convert_grid(
             display: None,
             background: config.background.clone(),
             fit: config.fit,
-            layering: config.layering,
+            decoupage: config.decoupage,
         },
     );
 
@@ -656,7 +659,7 @@ fn convert_cluster(
             display,
             background: config.background.clone(),
             fit: config.fit,
-            layering: config.layering,
+            decoupage: config.decoupage,
         },
     );
 

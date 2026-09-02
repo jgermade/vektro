@@ -38,21 +38,66 @@
 //! ajustar una sola vez para las dos caras. En depuración hay una comprobación
 //! que lo verifica grieta a grieta, para que sea un hecho y no un argumento.
 
-use std::collections::HashMap;
-
-use crate::cluster::{Clustering, NONE};
-use crate::region::{EdgeId, HalfEdge, Region, Regions, Ring};
+use crate::region::{self, EdgeId, HalfEdge, Ring};
 use crate::trace::Point;
 
-/// Extrae los contornos de una imagen ya etiquetada.
+/// La etiqueta de un píxel que no es de ninguna región: lo transparente y todo
+/// lo que queda fuera de la imagen.
+///
+/// Vive aquí y no en quien etiqueta porque hay dos que etiquetan —la rejilla y
+/// el clustering— y esto es lo que las dos tienen que decir para que el
+/// recorrido de grietas sepa dónde acaba el dibujo.
+pub const NONE: u32 = u32::MAX;
+
+/// Extrae los contornos de una imagen ya etiquetada: cada frontera una sola vez
+/// y sabiendo qué etiqueta queda a cada lado.
+///
+/// Devuelve los tramos y, para cada etiqueta de `0..count`, sus anillos. Quién
+/// es cada etiqueta —de qué color y cuánto ocupa— no se sabe aquí y lo pone
+/// quien llama: esto es sólo la topología, y por eso sirve igual para las dos
+/// segmentaciones.
+pub fn from_labels(
+    width: usize,
+    height: usize,
+    labels: &[u32],
+    count: usize,
+) -> (Vec<HalfEdge>, Vec<Vec<Ring>>) {
+    let mut cracks = Cracks {
+        w: width,
+        h: height,
+        labels,
+        used: vec![false; width * (height + 1) + (width + 1) * height],
+        node: vec![false; (width + 1) * (height + 1)],
+    };
+    cracks.mark_nodes();
+    let edges = cracks.chains();
+    let rings = assemble(&edges, count);
+    (edges, rings)
+}
+
+/// Lo mismo a partir de un clustering, que es quien trae además los colores.
 ///
 /// Las regiones salen en el mismo orden que traían las del clustering, que es el
 /// de emisión: los colores más presentes primero y los de un color seguidos.
-pub fn from_clustering(clustering: &Clustering) -> Regions {
-    let mut cracks = Cracks::new(clustering);
-    let edges = cracks.chains();
-    let regions = assemble(clustering, &edges);
-    Regions {
+#[cfg(feature = "illustration")]
+pub fn from_clustering(clustering: &crate::cluster::Clustering) -> crate::region::Regions {
+    let (edges, rings) = from_labels(
+        clustering.width,
+        clustering.height,
+        &clustering.labels,
+        clustering.clusters.len(),
+    );
+    let regions = clustering
+        .clusters
+        .iter()
+        .zip(rings)
+        .map(|(cluster, rings)| crate::region::Region {
+            color: cluster.color,
+            area: cluster.area,
+            rings,
+        })
+        .collect();
+    crate::region::Regions {
         width: clustering.width,
         height: clustering.height,
         colors: clustering.colors,
@@ -61,6 +106,8 @@ pub fn from_clustering(clustering: &Clustering) -> Regions {
         // grietas, y qué bandas son una rampa es una pregunta para los colores.
         ramps: Vec::new(),
         edges,
+        // Nadie ha movido nada todavía: los `left`/`right` valen tal cual.
+        moved: Vec::new(),
     }
 }
 
@@ -84,23 +131,16 @@ struct Cracks<'a> {
 }
 
 impl<'a> Cracks<'a> {
-    fn new(clustering: &'a Clustering) -> Self {
-        let (w, h) = (clustering.width, clustering.height);
-        let mut cracks = Cracks {
-            w,
-            h,
-            labels: &clustering.labels,
-            used: vec![false; w * (h + 1) + (w + 1) * h],
-            node: vec![false; (w + 1) * (h + 1)],
-        };
+    /// Marca las esquinas en las que la frontera se bifurca, que es donde hay
+    /// que partir las cadenas.
+    fn mark_nodes(&mut self) {
         let mut buf = [Crack::H(0, 0); 4];
-        for ly in 0..=h {
-            for lx in 0..=w {
-                let degree = cracks.incident(lx, ly, &mut buf);
-                cracks.node[ly * (w + 1) + lx] = degree > 2;
+        for ly in 0..=self.h {
+            for lx in 0..=self.w {
+                let degree = self.incident(lx, ly, &mut buf);
+                self.node[ly * (self.w + 1) + lx] = degree > 2;
             }
         }
-        cracks
     }
 
     /// La etiqueta de un píxel. Fuera de la imagen es [`NONE`], igual que lo
@@ -271,14 +311,14 @@ impl<'a> Cracks<'a> {
     }
 }
 
-/// Encadena las medias aristas de cada región en sus anillos.
+/// Encadena las medias aristas de cada etiqueta en sus anillos.
 ///
 /// Una región aparece como `left` de unas y como `right` de otras; en las
 /// segundas su contorno recorre el tramo al revés, que es lo que marca el `bool`
 /// del anillo. Al recorrerlas siempre en el sentido en que la región queda a la
 /// izquierda, los anillos salen todos con la misma orientación.
-fn assemble(clustering: &Clustering, edges: &[HalfEdge]) -> Vec<Region> {
-    let mut uses: Vec<Vec<(EdgeId, bool)>> = vec![Vec::new(); clustering.clusters.len()];
+fn assemble(edges: &[HalfEdge], count: usize) -> Vec<Vec<Ring>> {
+    let mut uses: Vec<Vec<(EdgeId, bool)>> = vec![Vec::new(); count];
     for (id, edge) in edges.iter().enumerate() {
         uses[edge.left].push((id, false));
         if let Some(right) = edge.right {
@@ -286,138 +326,5 @@ fn assemble(clustering: &Clustering, edges: &[HalfEdge]) -> Vec<Region> {
         }
     }
 
-    uses.iter()
-        .zip(&clustering.clusters)
-        .map(|(uses, cluster)| Region {
-            color: cluster.color,
-            area: cluster.area,
-            rings: rings(edges, uses),
-        })
-        .collect()
-}
-
-/// Reparte los tramos de una cara en anillos cerrados.
-///
-/// «Cara» y no «región» a propósito: lo único que se le pide a `uses` es que sean
-/// los tramos de una figura, cada uno orientado con la figura a su izquierda. Con
-/// eso vale igual para el contorno de una región que para el de la **unión** de
-/// varias —quitando los tramos que quedan por dentro—, que es de lo que vive
-/// [`crate::ramp`] y por lo que fundir un grupo de bandas no necesita ni un
-/// recorte de polígonos.
-pub(crate) fn rings(edges: &[HalfEdge], uses: &[(EdgeId, bool)]) -> Vec<Ring> {
-    let mut by_start: HashMap<Point, Vec<usize>> = HashMap::new();
-    for (i, &u) in uses.iter().enumerate() {
-        by_start.entry(start_of(edges, u)).or_default().push(i);
-    }
-
-    let mut done = vec![false; uses.len()];
-    let mut out = Vec::new();
-    for seed in 0..uses.len() {
-        if done[seed] {
-            continue;
-        }
-        let mut ring: Ring = Vec::new();
-        let opening = start_of(edges, uses[seed]);
-        let mut i = seed;
-        loop {
-            done[i] = true;
-            ring.push(uses[i]);
-            let end = end_of(edges, uses[i]);
-            // El anillo se cierra al volver a donde empezó, y ahí se corta aunque
-            // queden tramos sin usar que salgan de este mismo punto. Seguir
-            // enganchándolos daría un anillo en forma de ocho: es lo que pasa con
-            // dos trozos de la misma región que sólo se tocan por una esquina, que
-            // son dos cadenas cerradas distintas y las dos empiezan y acaban ahí.
-            // El relleno par-impar pintaría igual el ocho, pero cada trozo tiene
-            // que ser su propio anillo para que un ajustador de curvas pueda
-            // cerrar cada uno por su cuenta.
-            if end == opening {
-                break;
-            }
-            let incoming = last_step(edges, uses[i]);
-            // En una esquina donde la región se toca consigo misma salen dos
-            // continuaciones. Se prefiere el giro más cerrado a la izquierda,
-            // igual que en `trace::pick_next`: eso separa los píxeles que sólo se
-            // tocan en diagonal en anillos distintos, que es lo que hace que el
-            // relleno par-impar los pinte bien.
-            let next = by_start.get(&end).and_then(|candidates| {
-                candidates
-                    .iter()
-                    .copied()
-                    .filter(|&c| !done[c])
-                    .min_by_key(|&c| turn(incoming, first_step(edges, uses[c])))
-            });
-            match next {
-                Some(next) => i = next,
-                // No debería pasar: el contorno de una cara son curvas cerradas,
-                // así que desde cualquier tramo se vuelve al principio.
-                None => {
-                    debug_assert!(false, "anillo abierto en {end:?}");
-                    break;
-                }
-            }
-        }
-        out.push(ring);
-    }
-    out
-}
-
-fn start_of(edges: &[HalfEdge], (edge, reversed): (EdgeId, bool)) -> Point {
-    let points = &edges[edge].points;
-    if reversed {
-        points[points.len() - 1]
-    } else {
-        points[0]
-    }
-}
-
-fn end_of(edges: &[HalfEdge], (edge, reversed): (EdgeId, bool)) -> Point {
-    let points = &edges[edge].points;
-    if reversed {
-        points[0]
-    } else {
-        points[points.len() - 1]
-    }
-}
-
-/// El primer paso del tramo tal como se recorre.
-fn first_step(edges: &[HalfEdge], (edge, reversed): (EdgeId, bool)) -> Point {
-    let points = &edges[edge].points;
-    let n = points.len();
-    if reversed {
-        delta(points[n - 1], points[n - 2])
-    } else {
-        delta(points[0], points[1])
-    }
-}
-
-/// El último paso del tramo tal como se recorre.
-fn last_step(edges: &[HalfEdge], (edge, reversed): (EdgeId, bool)) -> Point {
-    let points = &edges[edge].points;
-    let n = points.len();
-    if reversed {
-        delta(points[1], points[0])
-    } else {
-        delta(points[n - 2], points[n - 1])
-    }
-}
-
-fn delta(a: Point, b: Point) -> Point {
-    (b.0 - a.0, b.1 - a.1)
-}
-
-/// Cuánto gira una continuación respecto a lo que se traía: la izquierda
-/// primero. Mismo criterio que [`crate::trace`].
-fn turn(incoming: Point, outgoing: Point) -> u8 {
-    let left = (incoming.1, -incoming.0);
-    let right = (-incoming.1, incoming.0);
-    if outgoing == left {
-        0
-    } else if outgoing == incoming {
-        1
-    } else if outgoing == right {
-        2
-    } else {
-        3
-    }
+    uses.iter().map(|uses| region::rings(edges, uses)).collect()
 }

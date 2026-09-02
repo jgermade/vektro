@@ -205,6 +205,58 @@ fn fondo_conservado() {
     check("fondo-conservado", &out, "SOBRE_FONDO a 1x, scale = 1.0");
 }
 
+/// El contorno simplificado en pixel art, con y sin découpage.
+///
+/// Faltaba: no había ninguna instantánea de la rejilla con `Fit::Polygon`, y por
+/// ahí se coló durante un tiempo que cada región se trazaba por su cuenta y el
+/// ajuste simplificaba **dos veces** cada frontera compartida, con resultados
+/// distintos. Las dos caras se separaban hasta la tolerancia y entre ellas
+/// asomaba el fondo. Estas dos instantáneas son la red de eso.
+#[test]
+fn el_poligono_de_la_rejilla_y_su_decoupage() {
+    let plano = convert(
+        SPRITE,
+        1,
+        &Config {
+            fit: Fit::polygon(),
+            ..sin_detectar()
+        },
+    );
+    let capas = convert(
+        SPRITE,
+        1,
+        &Config {
+            fit: Fit::polygon(),
+            decoupage: true,
+            ..sin_detectar()
+        },
+    );
+
+    // El découpage no cambia en qué se parte el dibujo ni con qué se pinta: sólo
+    // hasta dónde llega cada pieza por debajo de la siguiente.
+    assert_eq!(capas.paths, plano.paths, "las mismas figuras");
+    assert_eq!(capas.colors, plano.colors, "y la misma paleta");
+    assert!(
+        capas.svg.len() > plano.svg.len(),
+        "apilar tiene que costar datos: {} bytes contra {}",
+        capas.svg.len(),
+        plano.svg.len()
+    );
+    // Y no se dilata nada: el solapamiento es topológico, no un `stroke`.
+    assert!(!capas.svg.contains("stroke"), "el découpage no dilata");
+
+    check(
+        "rejilla-poligono",
+        &plano,
+        "SPRITE a 1x, fit = polygon (0.75)",
+    );
+    check(
+        "rejilla-poligono.decoupage",
+        &capas,
+        "SPRITE a 1x, fit = polygon (0.75), decoupage",
+    );
+}
+
 /// Los defaults del camino de pixel art no se mueven cuando `Config` se parta en
 /// `Segmentation` / `Fit`: las necesidades del modo ilustración (tolerancia mucho más
 /// alta) no deben arrastrarlos.

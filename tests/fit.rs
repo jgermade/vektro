@@ -366,18 +366,19 @@ fn una_diagonal_sale_recta() {
 
     assert_eq!(escalones.len(), 1);
     assert_eq!(recta.len(), 1, "el ajuste no debe partir el anillo");
-    // El triángulo tiene doce vértices en escalera —dos por escalón— y cuatro
-    // cuando la hipotenusa es un solo tramo: los tres del triángulo y el borde
-    // de arriba, que mide un píxel porque la fila de arriba tiene un píxel.
+    // El triángulo tiene doce vértices en escalera, dos por escalón.
     assert_eq!(escalones[0].len(), 12);
-    assert_eq!(recta[0].len(), 4);
-    // Y los cuatro son vértices que ya estaban: RDP elige, no inventa.
+    // Y tres cuando la hipotenusa es un solo tramo: los del triángulo. El borde
+    // de arriba —que mide un píxel, porque la fila de arriba tiene uno— entra
+    // dentro de la tolerancia: `(1, 0)` se aparta `1/√2 ≈ 0.707` de la cuerda
+    // `(0, 0)`-`(5, 5)`, y la tolerancia de partida es 0.75. Conservarlo también
+    // sería correcto —lo era antes, cuando el anillo empezaba en otro punto—;
+    // lo que el ajuste promete es la cota, no cuántos vértices deja.
+    assert_eq!(recta[0].len(), 3);
+    // Y los tres son vértices que ya estaban: RDP elige, no inventa.
     let mut triangulo = recta[0].clone();
     triangulo.sort_by(|a, b| a.partial_cmp(b).expect("sin NaN"));
-    assert_eq!(
-        triangulo,
-        vec![(0.0, 0.0), (0.0, 5.0), (1.0, 0.0), (5.0, 5.0)]
-    );
+    assert_eq!(triangulo, vec![(0.0, 0.0), (0.0, 5.0), (5.0, 5.0)]);
 }
 
 /// Con tolerancia 0 el polígono dibuja exactamente la escalera: RDP sólo quita
@@ -672,7 +673,7 @@ fn convert_cluster_buf(w: u32, h: u32, buf: &[u8], fit: Fit) -> Conversion {
 
     let config = Config {
         fit,
-        layering: false,
+        decoupage: false,
         ..Config::cluster(ClusterOptions {
             // Sin filtrar: aquí se mira el ajuste, y con el umbral por defecto
             // un dibujo de este tamaño es todo motas.

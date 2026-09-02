@@ -31,7 +31,40 @@ subcommand.
 | `-b, --background <COLOUR>` | none | Adds a background rectangle, e.g. `"#ffffff"`. |
 | `--fit <pixel\|polygon\|spline>` | `pixel` on `pixelart`, `polygon` on `illustration` | How a contour becomes path data. See below. |
 | `--fit-tolerance <N>` | per fitter | Maximum deviation in pixels: 0.75 for `polygon`, 1.5 for `spline`. |
+| `--decoupage` | off | Draws every shape whole and underneath the ones stacked on top of it, so a shared border leaves no seam. See below. |
 | `-q, --quiet` | off | Silences the report on stderr. |
+
+### `--decoupage`
+
+Two shapes that meet along a shared border leave a hairline when rendered, even
+though the geometry is exact: the border splits the pixel's coverage between
+them, each `<path>` composites on its own, and what lands is half a colour over
+half an empty canvas with the other half painted on top. It is the conflation
+artefact, and no amount of better tracing removes it.
+
+With `--decoupage` each shape is drawn as the **union of itself and the
+neighbours stacked above it**, largest area first. What you see does not change
+— the shapes on top are opaque and painted later — but underneath their
+antialiased edge there is now solid colour instead of empty canvas, so the edge
+blends the two colours that actually meet there. No geometry is dilated and no
+`stroke` is emitted.
+
+Both segmentations support it, because both extract every border once. With
+`--fit pixel` there is nothing to fix — the edges land on integer coordinates
+and adjacent shapes tile exactly — so it only makes the document bigger. It is
+with `--fit polygon` and `--fit spline` that it earns its keep.
+
+Measured by rasterising with a browser and counting where the background shows
+through, on `examples/results-to-improve/cover.jpg`:
+
+| Path | Background bleed | Size |
+| --- | --- | --- |
+| `illustration --fit spline` | 15 240 px → **0** | 112 KB → 187 KB |
+| `pixelart --scale 8 --fit polygon` | 8 051 px → **0** | 11.7 KB → 14.4 KB |
+| `pixelart --scale 8 --fit spline` | 9 484 px → **0** | 11.9 KB → 14.5 KB |
+
+Against a 4× supersample of the same drawing, the illustration path's mean
+per-pixel error drops from 1.54 to 0.75.
 
 ### `--fit`, the other axis
 

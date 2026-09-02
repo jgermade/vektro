@@ -86,7 +86,7 @@ use crate::{Progress, Stage};
 ///
 /// Un `Option<u32>` costaría el doble de memoria, y sobre 4 Mpx son 16 MB de más
 /// para distinguir un caso que ya tiene un valor imposible libre.
-pub const NONE: u32 = u32::MAX;
+pub use crate::boundary::NONE;
 
 /// Hasta dónde puede arrastrarse un color que no se ha ganado entrada propia,
 /// en múltiplos de `tolerance`. Más lejos que esto funda entrada por raro que
