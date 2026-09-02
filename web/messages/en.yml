@@ -2,6 +2,7 @@
 app_name: "Vektro"
 original: "Original"
 svg: "SVG"
+new_image: "New image"
 download_svg: "Download SVG"
 copy_svg: "Copy SVG"
 share_svg: "Share SVG"

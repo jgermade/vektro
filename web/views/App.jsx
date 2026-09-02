@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { DropZone } from "../components/DropZone.jsx";
 import { DropOverlay } from "../components/DropOverlay.jsx";
 import { ConfirmModal } from "../components/ConfirmModal.jsx";
+import { NewImage } from "../components/NewImage.jsx";
 import * as converter from "../services/converter.js";
 import { Header } from "./Header.jsx";
 import { Footer } from "./Footer.jsx";
@@ -306,7 +307,12 @@ export function App() {
         onCancel={() => setPendingFile(null)}
       />
 
-      <Header mode={mode} onSelect={choose} />
+      <Header
+        mode={mode}
+        onSelect={choose}
+        active={active}
+        onFile={(file) => handleFileSelect(file)}
+      />
 
       <main class={active ? "has-active" : ""}>
         <DropZone hidden={active} onFile={(file) => handleFileSelect(file)} />
@@ -353,6 +359,10 @@ export function App() {
           {error}
         </p>
       </main>
+
+      {active ? (
+        <NewImage place="bottom" onFile={(file) => handleFileSelect(file)} />
+      ) : null}
 
       <Footer />
     </>

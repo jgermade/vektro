@@ -1,3 +1,4 @@
+import { NewImage } from "../components/NewImage.jsx";
 import { Tabs } from "../components/Tabs.jsx";
 import * as converter from "../services/converter.js";
 import { t } from "../services/i18n.js";
@@ -10,7 +11,7 @@ const TABS = Object.entries(MODES).map(([id, { name, hint, icon }]) => ({
   icon,
 }));
 
-export function Header({ mode, onSelect }) {
+export function Header({ mode, onSelect, active, onFile }) {
   return (
     <header class="top">
       <h1
@@ -22,12 +23,15 @@ export function Header({ mode, onSelect }) {
       </h1>
       <p>Imágenes a SVG, entero en tu navegador: la imagen no sale de tu equipo.</p>
 
-      <Tabs
-        label="Modo de conversión"
-        tabs={TABS}
-        active={mode}
-        onSelect={onSelect}
-      />
+      <div class="tabs-row">
+        <Tabs
+          label="Modo de conversión"
+          tabs={TABS}
+          active={mode}
+          onSelect={onSelect}
+        />
+        {active ? <NewImage place="top" onFile={onFile} /> : null}
+      </div>
     </header>
   );
 }

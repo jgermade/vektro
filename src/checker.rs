@@ -53,7 +53,21 @@ const CELL_AGREEMENT: f64 = 0.9;
 /// Proporción de la casilla que tiene que ser tono limpio para poder juzgarla.
 /// Sin esto, una casilla que el reescalado ha dejado casi toda en mezcla se
 /// quedaría con el tono de los cuatro píxeles sueltos que le sobrevivan.
+///
+/// Se mide sobre **su** superficie, no sobre la de una casilla entera: las de
+/// los cuatro bordes de la imagen están cortadas, y pedirles lo mismo que a una
+/// completa es pedirles el 100% de tono limpio. Eran justo lo único que se
+/// quedaba sin borrar: una franja de un borde a otro arriba, abajo y a los lados.
 const CELL_SOLID: f64 = 0.5;
+/// Casillas que como mucho puede ocupar una bolsa suelta para barrerla entera.
+const POCKET_CELLS: f64 = 12.0;
+/// Parte de una bolsa que tiene que llevar el tono menos abundante para creerse
+/// que es damero. Un plano del dibujo trae uno solo; el damero, los dos.
+///
+/// Bajo a propósito: una bolsa de tres casillas alterna A-B-A y ya se queda en
+/// un tercio, y si el dibujo le come parte de la del medio baja de ahí. Las
+/// medidas sobre la imagen de referencia caían en 0.21 y 0.248.
+const POCKET_BALANCE: f64 = 0.15;
 /// Por debajo de esta fracción de imagen, la detección se descarta.
 const MIN_COVERAGE: f64 = 0.05;
 
@@ -543,12 +557,11 @@ fn read_board(labels: &[u8], w: usize, h: usize, lattice: &Lattice) -> Board {
         }
     }
 
-    let solid = (lattice.cell.0 * lattice.cell.1 * CELL_SOLID) as u32;
     let read: Vec<Option<u8>> = (0..cells)
         .map(|i| {
             let (light, dark) = (count[i][0], count[i][1]);
             let seen = light + dark;
-            if seen < solid.min(area[i]) {
+            if (seen as f64) < area[i] as f64 * CELL_SOLID {
                 return None;
             }
             let enough = |n: u32| n as f64 >= seen as f64 * CELL_AGREEMENT;
@@ -662,7 +675,83 @@ fn erase(
             }
         }
     }
-    erased + trim_seam(img, labels, w, h, &seen, &index, board)
+    let seams = trim_seam(img, labels, w, h, &seen, &index, board);
+    erased + seams + sweep_pockets(img, labels, w, h, lattice)
+}
+
+/// Bolsas de damero que la inundación no alcanzó, juzgadas por lo que son.
+///
+/// Un rincón de fondo que el dibujo deja casi cercado —entre dos púas, contra el
+/// borde de la imagen— no llega a tener dos vecinas confirmadas, así que su tono
+/// sale por alternancia desde lejos y a veces sale del revés; entonces no cuadra
+/// con nada y se queda. Aquí se miran esos restos como manchas conexas y no como
+/// casillas: lo que distingue al damero de un plano del dibujo es que **trae los
+/// dos tonos**, y eso una mancha lo dice por sí sola, sin rejilla de por medio.
+///
+/// Se le pide además tocar algo ya borrado, para que sea el mismo fondo y no un
+/// dibujo aparte, y no pasar de unas pocas casillas: si algo grande ha
+/// sobrevivido a todo lo anterior, es que la detección no iba fina y es mejor
+/// dejarlo que adivinar.
+fn sweep_pockets(
+    img: &mut RgbaImage,
+    labels: &[u8],
+    w: usize,
+    h: usize,
+    lattice: &Lattice,
+) -> usize {
+    let cap = (lattice.cell.0 * lattice.cell.1 * POCKET_CELLS) as usize;
+    let opaque = |img: &RgbaImage, x: usize, y: usize| img.get_pixel(x as u32, y as u32).0[3] != 0;
+
+    let mut seen = vec![false; w * h];
+    let mut erased = 0;
+    for start in 0..w * h {
+        let (sx, sy) = (start % w, start / w);
+        if seen[start] || labels[start] > 1 && labels[start] != MIX || !opaque(img, sx, sy) {
+            continue;
+        }
+
+        let mut mancha = Vec::new();
+        let mut tones = [0usize; 2];
+        let mut touches = false;
+        let mut stack = vec![(sx, sy)];
+        seen[start] = true;
+        while let Some((x, y)) = stack.pop() {
+            mancha.push((x, y));
+            if labels[y * w + x] < 2 {
+                tones[labels[y * w + x] as usize] += 1;
+            }
+            for (nx, ny) in [
+                (x.wrapping_sub(1), y),
+                (x + 1, y),
+                (x, y.wrapping_sub(1)),
+                (x, y + 1),
+            ] {
+                if nx >= w || ny >= h {
+                    continue;
+                }
+                // Tocar un píxel ya transparente es tocar el fondo de verdad.
+                if !opaque(img, nx, ny) {
+                    touches = true;
+                } else if !seen[ny * w + nx]
+                    && (labels[ny * w + nx] < 2 || labels[ny * w + nx] == MIX)
+                {
+                    seen[ny * w + nx] = true;
+                    stack.push((nx, ny));
+                }
+            }
+        }
+
+        let clean = tones[0] + tones[1];
+        let both = clean > 0 && tones[0].min(tones[1]) as f64 >= clean as f64 * POCKET_BALANCE;
+        if !touches || !both || mancha.len() > cap {
+            continue;
+        }
+        for (x, y) in mancha {
+            img.get_pixel_mut(x as u32, y as u32).0[3] = 0;
+            erased += 1;
+        }
+    }
+    erased
 }
 
 /// Borra la raya de un píxel que queda en la costura entre dos casillas.
