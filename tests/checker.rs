@@ -81,6 +81,41 @@ fn casillas_de_otro_tamano() {
     );
 }
 
+/// Unas bandas alternan dos tonos igual que un damero, pero sólo en un eje.
+///
+/// Antes las descartaba la paridad: `(cx + cy) & 1` cambia en los dos ejes, y
+/// una banda no. Ahora el tono de cada casilla se lee de la imagen, así que la
+/// casilla de una banda **sí** tiene dos vecinas del otro tono —las de arriba y
+/// abajo— y hay que seguir descartándolas por otro lado. Se fija aquí porque es
+/// la clase de fondo que más se parece a un damero sin serlo.
+#[test]
+fn no_confunde_unas_bandas_con_un_damero() {
+    for horizontal in [true, false] {
+        let mut img = RgbaImage::new(320, 320);
+        for (x, y, p) in img.enumerate_pixels_mut() {
+            let banda = (if horizontal { y / 8 } else { x / 8 }) % 2 == 1;
+            *p = if banda {
+                ImgRgba([204, 204, 204, 255])
+            } else {
+                ImgRgba([255, 255, 255, 255])
+            };
+        }
+        assert!(
+            checker::remove(&mut img).is_none(),
+            "bandas {} tomadas por damero",
+            if horizontal {
+                "horizontales"
+            } else {
+                "verticales"
+            }
+        );
+        assert!(
+            img.pixels().all(|p| p.0[3] == 255),
+            "se ha borrado parte de las bandas"
+        );
+    }
+}
+
 #[test]
 fn no_ve_dameros_donde_no_los_hay() {
     let mut img = RgbaImage::from_pixel(64, 64, ImgRgba([255, 255, 255, 255]));

@@ -7,13 +7,27 @@
 //!
 //! El reconocimiento es exigente a propósito: sólo se borran los píxeles que
 //! caen en casillas *enteras* del damero, así que un blanco suelto del dibujo
-//! que coincida con el color y la paridad de la cuadrícula sobrevive.
+//! que coincida con el tono de la casilla que le toca sobrevive.
+//!
+//! La rejilla dice **dónde** están las casillas, y la imagen **de qué tono** es
+//! cada una. Esa segunda parte no se calcula: parecía natural sacarla de la
+//! paridad de la casilla, `(cx + cy) & 1`, pero eso obliga a clavar el paso a
+//! una fracción de píxel. En una imagen de 2564 px con casillas de 40, un error
+//! de 0.3 en el paso corre la cuenta media casilla antes de llegar abajo y la
+//! paridad se invierte de ahí en adelante; y hay imágenes cuyo damero ni
+//! siquiera tiene un paso constante, así que no existe el número que lo arregle.
+//! Leyendo el tono de cada casilla, la alternancia se ancla sola en cada zona.
 
 use std::collections::HashMap;
 
 use image::RgbaImage;
 
 use crate::color::Rgba;
+
+/// Etiqueta de un píxel que es mezcla de los dos tonos, y de ninguno de ellos.
+const MIX: u8 = 3;
+/// Etiqueta de un píxel ajeno al damero.
+const OTHER: u8 = 2;
 
 /// Diferencia máxima entre canales para considerar un color un gris.
 const MAX_SATURATION: i32 = 24;
@@ -34,8 +48,12 @@ const UNIFORMITY: f64 = 0.7;
 /// Proporción de tiras completas que debe arrancar en la misma fase. Este es el
 /// criterio duro: una rejilla de verdad las alinea todas.
 const ALIGNMENT: f64 = 0.9;
-/// Proporción de la casilla que debe cuadrar para darla por parte del damero.
+/// Proporción de la casilla que debe llevar un mismo tono para dárselo.
 const CELL_AGREEMENT: f64 = 0.9;
+/// Proporción de la casilla que tiene que ser tono limpio para poder juzgarla.
+/// Sin esto, una casilla que el reescalado ha dejado casi toda en mezcla se
+/// quedaría con el tono de los cuatro píxeles sueltos que le sobrevivan.
+const CELL_SOLID: f64 = 0.5;
 /// Por debajo de esta fracción de imagen, la detección se descarta.
 const MIN_COVERAGE: f64 = 0.05;
 
@@ -50,23 +68,125 @@ pub struct Checkerboard {
     pub coverage: f64,
 }
 
-/// Parámetros geométricos del damero, una vez encajado.
-#[derive(Clone, Copy)]
+/// La rejilla encajada: a qué casilla pertenece cada coordenada de cada eje.
+///
+/// Se guarda casilla por coordenada, y no como un paso y una fase, porque el
+/// paso sale con dos decimales y sobre sesenta casillas ese redondeo corre la
+/// cuenta media casilla. Ver [`boundaries`].
 struct Lattice {
+    /// Tamaño medio de la casilla, sólo para informar.
     cell: (f64, f64),
-    offset: (f64, f64),
-    /// Qué tono ocupa las casillas de paridad par.
-    flip: bool,
+    /// Casilla de cada `x`, y de cada `y`. Empiezan en 0 y no bajan.
+    column: Vec<usize>,
+    row: Vec<usize>,
 }
 
 impl Lattice {
     /// Coordenadas de la casilla que contiene el píxel.
-    fn cell_at(&self, x: usize, y: usize) -> (i64, i64) {
+    fn cell_at(&self, x: usize, y: usize) -> (usize, usize) {
+        (self.column[x], self.row[y])
+    }
+
+    /// Casillas que hay por eje.
+    fn size(&self) -> (usize, usize) {
         (
-            ((x as f64 - self.offset.0) / self.cell.0).floor() as i64,
-            ((y as f64 - self.offset.1) / self.cell.1).floor() as i64,
+            self.column.last().map_or(0, |c| c + 1),
+            self.row.last().map_or(0, |r| r + 1),
         )
     }
+}
+
+/// Fronteras reales de las casillas de un eje, leídas de la imagen.
+///
+/// En la línea donde acaba una casilla, casi todos los píxeles del fondo cambian
+/// de tono a la vez: es un pico que se ve desde lejos aunque el dibujo tape media
+/// imagen. Se recorre prediciendo `anterior + paso` y encajando cada predicción
+/// en el mejor pico que haya cerca.
+///
+/// Encajar **desde la anterior ya encajada** es lo que hace que funcione: cada
+/// paso vuelve a anclarse, así que la ventana sólo tiene que cubrir el error de
+/// un paso —unas décimas— y no el acumulado. Un damero cuyo paso varía por zonas
+/// se sigue en vez de promediarse. Donde el dibujo tapa la frontera no hay pico
+/// y vale la predicción, que es lo que se quiere.
+fn boundaries(
+    labels: &[u8],
+    w: usize,
+    h: usize,
+    horizontal: bool,
+    cell: f64,
+    offset: f64,
+) -> Vec<usize> {
+    let (len, lines) = if horizontal { (w, h) } else { (h, w) };
+    let at = |i: usize, line: usize| {
+        labels[if horizontal {
+            line * w + i
+        } else {
+            i * w + line
+        }]
+    };
+
+    // Cuántos píxeles cambian de tono al pasar de la línea `i - 1` a la `i`.
+    let mut score = vec![0u32; len];
+    for (i, marca) in score.iter_mut().enumerate().skip(1) {
+        *marca = (0..lines)
+            .filter(|&line| {
+                let (a, b) = (at(i - 1, line), at(i, line));
+                a < 2 && b < 2 && a != b
+            })
+            .count() as u32;
+    }
+
+    // Cuánto tiene que marcar un pico para hacerle caso. Una frontera de verdad
+    // la cruzan casi todas las líneas que son fondo, así que se mira cuánto
+    // marca la frontera mediana y se pide la mitad de eso. Con menos se deja la
+    // predicción: en un damero de paso constante la aritmética ya acierta, y
+    // encajar contra un pico de ruido la estropearía, además de arrastrar el
+    // error a todas las fronteras siguientes.
+    let expected = (len as f64 / cell).max(1.0) as usize;
+    let mut ranked = score.clone();
+    ranked.sort_unstable_by(|a, b| b.cmp(a));
+    let strong = (ranked[(expected / 2).min(ranked.len() - 1)] / 2).max(1);
+
+    let window = (cell / 3.0).round().max(1.0) as usize;
+    let snap = |centre: f64| -> f64 {
+        let lo = (centre - window as f64).round().max(1.0) as usize;
+        let hi = ((centre + window as f64).round() as usize).min(len - 1);
+        match (lo..=hi).max_by_key(|&i| score[i]) {
+            Some(best) if score[best] >= strong => best as f64,
+            _ => centre,
+        }
+    };
+
+    // Se arranca de la fase que dio el ajuste y se encadena hacia los dos lados.
+    let mut cuts: Vec<f64> = Vec::new();
+    let mut at_cut = snap(offset);
+    while at_cut > 0.0 {
+        cuts.push(at_cut);
+        at_cut = snap(at_cut - cell);
+        if cuts.last().is_some_and(|&last| at_cut >= last - cell * 0.5) {
+            break;
+        }
+    }
+    cuts.reverse();
+    let mut at_cut = cuts.last().copied().unwrap_or(offset);
+    loop {
+        at_cut = snap(at_cut + cell);
+        if at_cut >= len as f64 - 1.0 {
+            break;
+        }
+        cuts.push(at_cut);
+    }
+
+    // De cortes a casilla por coordenada.
+    let mut index = Vec::with_capacity(len);
+    let mut k = 0;
+    for i in 0..len {
+        while k < cuts.len() && (i as f64) >= cuts[k] {
+            k += 1;
+        }
+        index.push(k);
+    }
+    index
 }
 
 /// Busca la cuadrícula y, si la encuentra, deja transparentes sus píxeles.
@@ -95,22 +215,23 @@ pub fn remove(img: &mut RgbaImage) -> Option<Checkerboard> {
         let Some(lattice) = fit(&labels, w, h) else {
             continue;
         };
-        let (cells, matching) = qualifying_cells(&labels, w, h, lattice);
-        if matching as f64 / (w * h) as f64 >= MIN_COVERAGE
-            && best.as_ref().is_none_or(|found| matching > found.matching)
+        let board = read_board(&labels, w, h, &lattice);
+        if board.matching as f64 / (w * h) as f64 >= MIN_COVERAGE
+            && best
+                .as_ref()
+                .is_none_or(|found| board.matching > found.board.matching)
         {
             best = Some(Candidate {
                 colors: (a, b),
                 lattice,
                 labels,
-                cells,
-                matching,
+                board,
             });
         }
     }
 
     let found = best?;
-    let erased = erase(img, &found.labels, w, h, found.lattice, &found.cells);
+    let erased = erase(img, &found.labels, w, h, &found.lattice, &found.board);
     Some(Checkerboard {
         cell: found.lattice.cell,
         colors: found.colors,
@@ -123,10 +244,7 @@ struct Candidate {
     colors: (Rgba, Rgba),
     lattice: Lattice,
     labels: Vec<u8>,
-    /// Casillas que son damero de principio a fin.
-    cells: Vec<bool>,
-    /// Píxeles que cuadran dentro de esas casillas; mide lo buena que es.
-    matching: usize,
+    board: Board,
 }
 
 /// Los colores opacos más repetidos de la imagen, con su recuento.
@@ -155,12 +273,22 @@ fn plausible_pair(a: Rgba, b: Rgba) -> bool {
     gray(a) && gray(b) && CONTRAST.contains(&(luma(a) - luma(b)).abs())
 }
 
-/// Marca cada píxel con el tono del damero al que se parece: 0, 1 o 2 (ninguno).
+/// Un color a medio camino entre los dos tonos, y de ninguno de los dos.
+///
+/// Es lo que deja un reescalado en la frontera entre dos casillas: ni el claro
+/// ni el oscuro, sino la mezcla que salga del filtro. Se reconoce por la
+/// desigualdad triangular —un punto del segmento que une los dos tonos suma
+/// justo la distancia que los separa— con la misma holgura que el resto.
+fn blended(c: Rgba, a: Rgba, b: Rgba, margin: f64) -> bool {
+    c.distance(&a) + c.distance(&b) <= a.distance(&b) + margin
+}
+
+/// Marca cada píxel con el tono al que se parece: 0, 1, [`MIX`] o [`OTHER`].
 fn label(img: &RgbaImage, a: Rgba, b: Rgba, margin: f64) -> Vec<u8> {
     img.pixels()
         .map(|p| {
             if p.0[3] != 255 {
-                return 2;
+                return OTHER;
             }
             let c = Rgba::new(p.0[0], p.0[1], p.0[2], p.0[3]);
             let (da, db) = (c.distance(&a), c.distance(&b));
@@ -168,16 +296,21 @@ fn label(img: &RgbaImage, a: Rgba, b: Rgba, margin: f64) -> Vec<u8> {
                 0
             } else if db <= margin {
                 1
+            } else if blended(c, a, b, margin) {
+                MIX
             } else {
-                2
+                OTHER
             }
         })
         .collect()
 }
 
-/// Tiras de color uniforme rodeadas por el otro tono. Las de los extremos están
-/// cortadas y no miden la casilla, así que se descartan.
-fn runs(labels: &[u8], w: usize, h: usize, horizontal: bool) -> Vec<(u32, u32)> {
+/// Tiras de color uniforme rodeadas por el otro tono, agrupadas por línea. Las
+/// de los extremos están cortadas y no miden la casilla, así que se descartan.
+///
+/// Van por líneas y no en una lista sola porque [`axis_fit`] mide de una tira a
+/// la siguiente, y eso sólo tiene sentido dentro de la misma línea.
+fn runs(labels: &[u8], w: usize, h: usize, horizontal: bool) -> Vec<Vec<(u32, u32)>> {
     let (len, lines) = if horizontal { (w, h) } else { (h, w) };
     let at = |line: usize, i: usize| -> u8 {
         labels[if horizontal {
@@ -189,6 +322,7 @@ fn runs(labels: &[u8], w: usize, h: usize, horizontal: bool) -> Vec<(u32, u32)> 
 
     let mut out = Vec::new();
     for line in 0..lines {
+        let mut here = Vec::new();
         // Segmentos (etiqueta, inicio, largo) de la línea.
         let mut segments: Vec<(u8, u32, u32)> = Vec::new();
         let mut start = 0;
@@ -198,17 +332,36 @@ fn runs(labels: &[u8], w: usize, h: usize, horizontal: bool) -> Vec<(u32, u32)> 
                 start = i;
             }
         }
-        for k in 1..segments.len().saturating_sub(1) {
-            let (label, from, length) = segments[k];
-            // La etiqueta 2 es "ningún tono": no tiene pareja con la que
-            // alternar, y calcularla desbordaría.
+        // Qué tono hay a un lado, saltándose la mezcla. En una imagen reescalada
+        // cada casilla llega a la siguiente por una franja de mezcla, y sin
+        // saltarla no habría una sola tira que alternase: la tira de al lado no
+        // es del otro tono, es el degradado que lleva hasta él.
+        let beside = |mut k: usize, back: bool| loop {
+            match segments.get(k) {
+                None => return OTHER,
+                Some(&(label, ..)) if label != MIX => return label,
+                _ if back => match k.checked_sub(1) {
+                    None => return OTHER,
+                    Some(prev) => k = prev,
+                },
+                _ => k += 1,
+            }
+        };
+
+        let inner = segments.len().saturating_sub(1);
+        for (k, &(label, from, length)) in segments.iter().enumerate().take(inner).skip(1) {
+            // Sólo los dos tonos miden la casilla: [`MIX`] es su frontera y
+            // [`OTHER`] no tiene pareja con la que alternar.
             if label > 1 {
                 continue;
             }
             let other = 1 - label;
-            if segments[k - 1].0 == other && segments[k + 1].0 == other {
-                out.push((from, length));
+            if beside(k - 1, true) == other && beside(k + 1, false) == other {
+                here.push((from, length));
             }
+        }
+        if !here.is_empty() {
+            out.push(here);
         }
     }
     out
@@ -237,7 +390,8 @@ fn mode(values: impl Iterator<Item = u32>) -> Option<(u32, usize, usize)> {
 fn fit(labels: &[u8], w: usize, h: usize) -> Option<Lattice> {
     let rows = runs(labels, w, h, true);
     let cols = runs(labels, w, h, false);
-    if rows.len() < MIN_RUNS || cols.len() < MIN_RUNS {
+    let counted = |lines: &[Vec<(u32, u32)>]| lines.iter().map(Vec::len).sum::<usize>();
+    if counted(&rows) < MIN_RUNS || counted(&cols) < MIN_RUNS {
         return None;
     }
     let (cell_x, offset_x) = axis_fit(&rows)?;
@@ -247,21 +401,13 @@ fn fit(labels: &[u8], w: usize, h: usize) -> Option<Lattice> {
     if (cell_x - cell_y).abs() > cell_x.max(cell_y) * 0.1 {
         return None;
     }
-    let (cell, offset) = ((cell_x, cell_y), (offset_x, offset_y));
-
-    // La paridad de las casillas puede empezar por cualquiera de los dos tonos.
-    let score = |flip: bool| {
-        let lattice = Lattice { cell, offset, flip };
-        labels
-            .iter()
-            .enumerate()
-            .filter(|&(i, &label)| label < 2 && label == expected(&lattice, i % w, i / w))
-            .count()
-    };
+    // Ni dónde cae cada frontera —lo leen [`boundaries`] de la imagen— ni qué
+    // tono ocupa cada casilla, que lo lee [`read_board`]. De aquí sale sólo el
+    // paso y la fase de partida.
     Some(Lattice {
-        cell,
-        offset,
-        flip: score(true) > score(false),
+        cell: (cell_x, cell_y),
+        column: boundaries(labels, w, h, true, cell_x, offset_x),
+        row: boundaries(labels, w, h, false, cell_y, offset_y),
     })
 }
 
@@ -271,9 +417,10 @@ fn fit(labels: &[u8], w: usize, h: usize) -> Option<Lattice> {
 /// menos que la moda y se promedian. La fase se saca en círculo (sumando cada
 /// arranque como un ángulo), que es lo que tolera esos redondeos: su módulo
 /// mide de paso lo bien alineadas que están.
-fn axis_fit(runs: &[(u32, u32)]) -> Option<(f64, f64)> {
-    let (peak, _, total) = mode(runs.iter().map(|r| r.1))?;
-    let accepted: Vec<(u32, u32)> = runs
+fn axis_fit(lines: &[Vec<(u32, u32)>]) -> Option<(f64, f64)> {
+    let all: Vec<(u32, u32)> = lines.iter().flatten().copied().collect();
+    let (peak, _, total) = mode(all.iter().map(|r| r.1))?;
+    let accepted: Vec<(u32, u32)> = all
         .iter()
         .copied()
         .filter(|&(_, len)| len + 1 >= peak && len <= peak + 1)
@@ -284,7 +431,22 @@ fn axis_fit(runs: &[(u32, u32)]) -> Option<(f64, f64)> {
 
     let n = accepted.len() as f64;
     let starts: Vec<f64> = accepted.iter().map(|&(start, _)| start as f64).collect();
-    let coarse = accepted.iter().map(|&(_, len)| len as f64).sum::<f64>() / n;
+
+    // El tamaño se mide **de un arranque al siguiente**, no por el largo de la
+    // tira. Si la imagen se reescaló, el filtro difumina las dos puntas de cada
+    // tira y le come un píxel; el largo sale corto y esa mordida no se cancela.
+    // El sitio donde arranca la tira siguiente, en cambio, no se mueve.
+    let steps: Vec<u32> = lines
+        .iter()
+        .flat_map(|line| line.windows(2).map(|pair| pair[1].0 - pair[0].0))
+        .collect();
+    let (step, _, _) = mode(steps.iter().copied())?;
+    let near: Vec<f64> = steps
+        .iter()
+        .filter(|&&s| s + 1 >= step && s <= step + 1)
+        .map(|&s| f64::from(s))
+        .collect();
+    let coarse = near.iter().sum::<f64>() / near.len() as f64;
     if coarse < 2.0 {
         return None;
     }
@@ -321,85 +483,134 @@ fn phase(starts: &[f64], cell: f64) -> (f64, f64) {
     (re, im)
 }
 
-/// Tono que le toca a la casilla de esa posición.
-fn expected(lattice: &Lattice, x: usize, y: usize) -> u8 {
-    let (cx, cy) = lattice.cell_at(x, y);
-    (((cx + cy) & 1) as u8) ^ u8::from(lattice.flip)
-}
-
 /// Índice de casilla de cada píxel, y las dimensiones del tablero.
-fn cell_index(
-    w: usize,
-    h: usize,
-    lattice: Lattice,
-) -> (impl Fn(usize, usize) -> usize, usize, usize) {
-    let origin = lattice.cell_at(0, 0);
-    let last = lattice.cell_at(w - 1, h - 1);
-    let cells_x = (last.0 - origin.0 + 1) as usize;
-    let cells_y = (last.1 - origin.1 + 1) as usize;
-
+fn cell_index(lattice: &Lattice) -> (impl Fn(usize, usize) -> usize + use<'_>, usize, usize) {
+    let (cells_x, cells_y) = lattice.size();
     let index = move |x: usize, y: usize| -> usize {
         let (cx, cy) = lattice.cell_at(x, y);
-        (cy - origin.1) as usize * cells_x + (cx - origin.0) as usize
+        cy * cells_x + cx
     };
     (index, cells_x, cells_y)
 }
 
-/// Casillas que son damero de principio a fin, y cuántos píxeles suman.
-///
-/// Donde el dibujo pisa la cuadrícula, la casilla deja de cuadrar y se queda
-/// entera: así un blanco suelto del dibujo no se lleva por delante.
-///
-/// No basta con que la casilla cuadre por su cuenta: un plano blanco del dibujo
-/// —el ojo de un personaje, sin ir más lejos— cuadra perfectamente con las
-/// casillas claras. Lo que distingue al fondo es la alternancia, así que se
-/// exige que las vecinas, que esperan el otro tono, cuadren también.
-fn qualifying_cells(labels: &[u8], w: usize, h: usize, lattice: Lattice) -> (Vec<bool>, usize) {
-    let (index, cells_x, cells_y) = cell_index(w, h, lattice);
-    let cells = cells_x * cells_y;
-    let mut total = vec![0u32; cells];
-    let mut hits = vec![0u32; cells];
+/// El tablero: qué tono lleva cada casilla y cuáles son damero de verdad.
+struct Board {
+    /// Tono de cada casilla. Las confirmadas lo traen leído de la imagen; el
+    /// resto, deducido de ellas por alternancia.
+    tone: Vec<u8>,
+    /// Casillas que son damero de principio a fin.
+    ok: Vec<bool>,
+    /// Píxeles que cuadran dentro de esas casillas; mide lo buena que es.
+    matching: usize,
+}
 
+/// Vecinas ortogonales de una casilla, dentro del tablero.
+fn neighbours(i: usize, cells_x: usize, cells_y: usize) -> impl Iterator<Item = usize> {
+    let (cx, cy) = ((i % cells_x) as i64, (i / cells_x) as i64);
+    [(-1i64, 0i64), (1, 0), (0, -1), (0, 1)]
+        .into_iter()
+        .filter_map(move |(dx, dy)| {
+            let (nx, ny) = (cx + dx, cy + dy);
+            let dentro = nx >= 0 && ny >= 0 && nx < cells_x as i64 && ny < cells_y as i64;
+            dentro.then(|| ny as usize * cells_x + nx as usize)
+        })
+}
+
+/// Lee el tono de cada casilla y se queda con las que alternan de verdad.
+///
+/// Donde el dibujo pisa la cuadrícula, la casilla no tiene un tono claro y se
+/// queda entera: así un blanco suelto del dibujo no se lo lleva por delante.
+///
+/// Y no basta con que la casilla sea de un tono: un plano blanco del dibujo —el
+/// ojo de un personaje, sin ir más lejos— lo es. Lo que distingue al fondo es la
+/// **alternancia**, así que se le exige que al menos dos vecinas lleven el otro.
+fn read_board(labels: &[u8], w: usize, h: usize, lattice: &Lattice) -> Board {
+    let (index, cells_x, cells_y) = cell_index(lattice);
+    let cells = cells_x * cells_y;
+    let mut count = vec![[0u32; 2]; cells];
+    let mut area = vec![0u32; cells];
+
+    // Las mezclas no cuentan. En una imagen reescalada son el borde de la
+    // casilla, y meterlas en el reparto bajaría del acuerdo a toda la rejilla.
     for y in 0..h {
         for x in 0..w {
             let i = index(x, y);
-            total[i] += 1;
-            if labels[y * w + x] == expected(&lattice, x, y) {
-                hits[i] += 1;
+            area[i] += 1;
+            let label = labels[y * w + x];
+            if label < 2 {
+                count[i][label as usize] += 1;
             }
         }
     }
 
-    let agrees: Vec<bool> = (0..cells)
-        .map(|i| total[i] > 0 && hits[i] as f64 >= total[i] as f64 * CELL_AGREEMENT)
+    let solid = (lattice.cell.0 * lattice.cell.1 * CELL_SOLID) as u32;
+    let read: Vec<Option<u8>> = (0..cells)
+        .map(|i| {
+            let (light, dark) = (count[i][0], count[i][1]);
+            let seen = light + dark;
+            if seen < solid.min(area[i]) {
+                return None;
+            }
+            let enough = |n: u32| n as f64 >= seen as f64 * CELL_AGREEMENT;
+            match (enough(light), enough(dark)) {
+                (true, _) => Some(0),
+                (_, true) => Some(1),
+                _ => None,
+            }
+        })
         .collect();
 
     let ok: Vec<bool> = (0..cells)
         .map(|i| {
-            if !agrees[i] {
-                return false;
-            }
-            let (cx, cy) = ((i % cells_x) as i64, (i / cells_x) as i64);
-            let neighbours = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-                .iter()
-                .filter(|&&(dx, dy)| {
-                    let (nx, ny) = (cx + dx, cy + dy);
-                    nx >= 0
-                        && ny >= 0
-                        && nx < cells_x as i64
-                        && ny < cells_y as i64
-                        && agrees[ny as usize * cells_x + nx as usize]
-                })
-                .count();
-            neighbours >= 2
+            let Some(t) = read[i] else { return false };
+            neighbours(i, cells_x, cells_y)
+                .filter(|&n| read[n] == Some(1 - t))
+                .count()
+                >= 2
         })
         .collect();
 
-    let matching = (0..cells)
+    Board {
+        tone: spread_tones(&read, &ok, cells_x, cells_y),
+        matching: (0..cells)
+            .filter(|&i| ok[i])
+            .map(|i| count[i][read[i].unwrap_or(0) as usize] as usize)
+            .sum(),
+        ok,
+    }
+}
+
+/// Extiende el tono de las casillas confirmadas a las que no lo tienen.
+///
+/// El borrado necesita un tono contra el que comparar **en toda** la imagen, no
+/// sólo donde el damero se ve limpio. Se propaga en anchura desde las
+/// confirmadas alternando a cada paso, que es lo que hace un damero. Así la
+/// paridad queda anclada a la zona de la que viene: si el paso de la rejilla se
+/// desvía y la cuenta de casillas se corre, cada lado de la desviación conserva
+/// la suya en vez de arrastrar una decisión tomada en la otra punta.
+fn spread_tones(read: &[Option<u8>], ok: &[bool], cells_x: usize, cells_y: usize) -> Vec<u8> {
+    let cells = cells_x * cells_y;
+    let mut tone = vec![u8::MAX; cells];
+    let mut queue: std::collections::VecDeque<usize> = (0..cells)
         .filter(|&i| ok[i])
-        .map(|i| hits[i] as usize)
-        .sum();
-    (ok, matching)
+        .inspect(|&i| tone[i] = read[i].unwrap_or(0))
+        .collect();
+
+    while let Some(i) = queue.pop_front() {
+        for n in neighbours(i, cells_x, cells_y) {
+            if tone[n] == u8::MAX {
+                tone[n] = 1 - tone[i];
+                queue.push_back(n);
+            }
+        }
+    }
+    // Sin ninguna casilla confirmada no hay nada que extender ni que borrar.
+    tone.iter_mut().for_each(|t| {
+        if *t == u8::MAX {
+            *t = OTHER;
+        }
+    });
+    tone
 }
 
 /// Vacía el damero y devuelve cuántos píxeles ha tocado.
@@ -414,17 +625,21 @@ fn erase(
     labels: &[u8],
     w: usize,
     h: usize,
-    lattice: Lattice,
-    cells: &[bool],
+    lattice: &Lattice,
+    board: &Board,
 ) -> usize {
-    let (index, ..) = cell_index(w, h, lattice);
-    let matches = |x: usize, y: usize| labels[y * w + x] == expected(&lattice, x, y);
+    let (index, ..) = cell_index(lattice);
+    let matches = |x: usize, y: usize| labels[y * w + x] == board.tone[index(x, y)];
+    // La mezcla no siembra —sola no dice nada— pero sí deja pasar: es la
+    // frontera entre dos casillas, y sin ella el borrado se queda a un lado y
+    // deja una malla de un píxel con el paso del damero.
+    let spreads = |x: usize, y: usize| matches(x, y) || labels[y * w + x] == MIX;
 
     let mut seen = vec![false; w * h];
     let mut stack: Vec<(usize, usize)> = Vec::new();
     for y in 0..h {
         for x in 0..w {
-            if cells[index(x, y)] && matches(x, y) && !seen[y * w + x] {
+            if board.ok[index(x, y)] && matches(x, y) && !seen[y * w + x] {
                 seen[y * w + x] = true;
                 stack.push((x, y));
             }
@@ -441,9 +656,60 @@ fn erase(
             (x, y.wrapping_sub(1)),
             (x, y + 1),
         ] {
-            if nx < w && ny < h && !seen[ny * w + nx] && matches(nx, ny) {
+            if nx < w && ny < h && !seen[ny * w + nx] && spreads(nx, ny) {
                 seen[ny * w + nx] = true;
                 stack.push((nx, ny));
+            }
+        }
+    }
+    erased + trim_seam(img, labels, w, h, &seen, &index, board)
+}
+
+/// Borra la raya de un píxel que queda en la costura entre dos casillas.
+///
+/// El paso de la rejilla se ajusta a centésimas de píxel, así que la línea que
+/// separa dos casillas cae medio píxel a un lado o a otro y la primera fila de
+/// la casilla nueva conserva a veces el tono de la vieja. Sobrevive a la
+/// inundación —no cuadra con su casilla ni es mezcla— y deja una malla con el
+/// paso del damero, que es justo lo que despista después a `grid::detect`.
+///
+/// Se hace en una pasada aparte y sin propagar: el píxel se borra por estar
+/// pegado a uno borrado **del otro lado de la costura**, y no sirve para
+/// alcanzar al siguiente. Con propagación se colaría por la costura hasta
+/// dentro de un plano del dibujo del mismo tono.
+fn trim_seam(
+    img: &mut RgbaImage,
+    labels: &[u8],
+    w: usize,
+    h: usize,
+    seen: &[bool],
+    index: &impl Fn(usize, usize) -> usize,
+    board: &Board,
+) -> usize {
+    let mut erased = 0;
+    for y in 0..h {
+        for x in 0..w {
+            if seen[y * w + x] || labels[y * w + x] > 1 {
+                continue;
+            }
+            let cell = index(x, y);
+            let seam = [
+                (x.wrapping_sub(1), y),
+                (x + 1, y),
+                (x, y.wrapping_sub(1)),
+                (x, y + 1),
+            ]
+            .into_iter()
+            .any(|(nx, ny)| {
+                nx < w
+                    && ny < h
+                    && seen[ny * w + nx]
+                    && index(nx, ny) != cell
+                    && labels[y * w + x] == board.tone[index(nx, ny)]
+            });
+            if seam {
+                img.get_pixel_mut(x as u32, y as u32).0[3] = 0;
+                erased += 1;
             }
         }
     }

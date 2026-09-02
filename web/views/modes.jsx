@@ -67,7 +67,6 @@ export const MODES = {
       autoScale: true,
       scale: "",
       tolerance: 12,
-      removeChecker: true,
       alpha: 128,
       autoPixel: true,
       pixelSize: "1",
@@ -87,7 +86,11 @@ export const MODES = {
       const opts = {
         tolerance: v.tolerance,
         alphaThreshold: v.alpha,
-        removeCheckerboard: v.removeChecker,
+        // Una sola casilla para las dos cosas. Se mandan las dos claves porque
+        // la página no tiene por qué saber cuál de los dos fondos trae la
+        // imagen: el damero se va primero y, si lo había, el color liso ya no
+        // encuentra nada que quitar.
+        removeCheckerboard: v.removeBackground,
         removeBackground: v.removeBackground,
         mergeColors: v.mergeColors,
         decoupage: v.decoupage,

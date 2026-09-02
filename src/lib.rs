@@ -73,7 +73,7 @@ pub use crate::segment::Grouping;
 /// regiones, y el **ajuste** cómo se pasa del contorno de una región a los datos
 /// de un `<path>`. Se combinan libremente: son etapas distintas del mismo
 /// proceso, no dos programas.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Config {
     pub segmentation: Segmentation,
     pub fit: Fit,
@@ -83,17 +83,6 @@ pub struct Config {
     /// para que la frontera compartida no deje costura. Ver [`svg`].
     ///
     pub decoupage: bool,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            segmentation: Segmentation::default(),
-            fit: Fit::default(),
-            background: None,
-            decoupage: false,
-        }
-    }
 }
 
 impl Config {

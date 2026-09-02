@@ -13,6 +13,23 @@ between a local build and a CI build would be enough for them to stop matching.
 > says, a second Rust installation is shadowing rustup on your `PATH` and the
 > file is being ignored. Put `$HOME/.cargo/bin` first, or remove the other one.
 
+## The short way
+
+The [`Makefile`](../Makefile) wraps everything below, and knows the one bit of
+ordering that reading the commands does not give you — the wasm is a build input
+to the web project, so it has to be compiled before anything under `web/`.
+
+```sh
+make install   # toolchain, wasm-pack, test corpus, npm dependencies
+make build     # wasm, release CLI, static site in web/dist
+make test      # fmt, clippy, cargo test, wasm smoke test, oxlint
+make up        # dev server
+```
+
+Nothing there is a new source of truth: every recipe is the command CI runs, and
+the rest of this page explains what each one is for. Reach for the commands
+directly when you want a single step.
+
 ## Build and test
 
 ```sh

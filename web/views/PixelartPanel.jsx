@@ -17,11 +17,10 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
   const HINTS = {
     scale: "Píxeles reales que ocupa cada píxel del dibujo.",
     tolerance: "Funde los tonos casi idénticos del ruido de compresión.",
-    removeChecker: "Devuelve a transparente el damero que se queda pegado al capturar la pantalla de un editor.",
     alpha: "Por debajo, el píxel se considera transparente.",
     pixelSize: "Unidades SVG por píxel del dibujo.",
     background: "Sin marcar, el SVG queda con fondo transparente.",
-    removeBackground: "Vacía el color liso que rodea al dibujo y ajusta el lienzo a lo que queda. El mismo color encerrado dentro se conserva.",
+    removeBackground: "Vacía lo que rodea al dibujo y ajusta el lienzo a lo que queda: el damero de transparencia que se queda pegado al capturar la pantalla de un editor, o el color liso si es lo que hay. El mismo color encerrado dentro se conserva.",
     mergeColors: "Ocupa menos, pero cada figura del SVG pasa a ser todo lo que comparte color, esté donde esté.",
     fit: "En pixel art la escalera es el dibujo, así que lo normal es dejarla. El polígono endereza las diagonales y las curvas redondean el sprite.",
     fitTolerance: "Cuánto puede apartarse la línea del contorno original.",
@@ -52,18 +51,6 @@ export function PixelartPanel({ hidden, values: v, onChange }) {
       />
 
       <div class="toggles-row">
-        <label
-          class="toggle-card"
-          data-hint={HINTS.removeChecker}
-          onMouseEnter={() => setHint(HINTS.removeChecker)}
-          onFocusCapture={() => setHint(HINTS.removeChecker)}
-          onClick={() => setHint(HINTS.removeChecker)}
-          onTouchStart={() => setHint(HINTS.removeChecker)}
-        >
-          <Check checked={v.removeChecker} onChange={set("removeChecker")} />
-          <span>Damero</span>
-        </label>
-
         <label
           class="toggle-card"
           data-hint={HINTS.decoupage}

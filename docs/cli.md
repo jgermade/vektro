@@ -138,10 +138,10 @@ The same ceiling is all `spline` promises too.
 Written to stderr unless `--quiet`:
 
 ```
-damero de transparencia #fefefe / #dadada, casilla 40.9x40.3 px: 16% a transparente
+damero de transparencia #fefefe / #dadada, casilla 40.9x40.3 px: 29% a transparente
 fondo #ffffff retirado y lienzo recortado
-rejilla 80x126 (celda 20.45x20.36, offset 18.09,0.14)
-43 colores, 385 paths, 1049 subtrazados -> sprite.svg (30.2 KB)
+rejilla 80x126 (celda 20.44x20.36, offset 18.16,0.17)
+43 colores, 336 paths, 699 subtrazados -> sprite.svg (24.2 KB)
 ```
 
 The first two lines only appear when something was actually removed. The grid

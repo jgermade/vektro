@@ -25,9 +25,9 @@ cargo build --release
 Writes `sprite.svg` and reports what it did (the program speaks Spanish):
 
 ```
-damero de transparencia #fefefe / #dadada, casilla 40.9x40.3 px: 16% a transparente
-rejilla 80x126 (celda 20.45x20.36, offset 18.09,0.14)
-43 colores, 385 paths, 1049 subtrazados -> sprite.svg (30.2 KB)
+damero de transparencia #fefefe / #dadada, casilla 40.9x40.3 px: 29% a transparente
+rejilla 80x126 (celda 20.44x20.36, offset 18.16,0.17)
+43 colores, 336 paths, 699 subtrazados -> sprite.svg (24.2 KB)
 ```
 
 The subcommand picks how the image is read. `pixelart` assumes a regular grid;

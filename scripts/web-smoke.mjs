@@ -231,6 +231,86 @@ for (const { nombre, convert } of casos) {
   ajustado.free();
 }
 
+// Las dos casillas que la página deja apagadas de partida, o casi. Son las que
+// más se notan si una errata las deja siempre encendidas: la conversión borra
+// parte de la imagen sin que nadie se lo haya pedido, y `read_config` no puede
+// avisar porque una clave que no existe se queda en su valor por omisión.
+console.log("\nquitar cosas sólo cuando se pide");
+
+// Damero de 8 px con un cuadrado opaco encima. `convertRgba` sólo.
+const conDamero = (() => {
+  const [w, h] = [160, 160];
+  const rgba = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const oscuro = (((x / 8) | 0) + ((y / 8) | 0)) % 2 === 1;
+      const dentro = x >= 40 && x < 90 && y >= 40 && y < 90;
+      const [r, g, b] = dentro ? [200, 20, 30] : oscuro ? [204, 204, 204] : [255, 255, 255];
+      rgba[i] = r; rgba[i + 1] = g; rgba[i + 2] = b; rgba[i + 3] = 255;
+    }
+  }
+  return { width: w, height: h, data: rgba };
+})();
+
+// Círculo azul sobre blanco liso: aquí `removeBackground` sí tiene qué quitar.
+const conFondoLiso = (() => {
+  const [w, h] = [160, 160];
+  const rgba = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const dentro = (x - 80) ** 2 + (y - 80) ** 2 < 40 ** 2;
+      const [r, g, b] = dentro ? [30, 90, 200] : [255, 255, 255];
+      rgba[i] = r; rgba[i + 1] = g; rgba[i + 2] = b; rgba[i + 3] = 255;
+    }
+  }
+  return { width: w, height: h, data: rgba };
+})();
+
+const conPixelart = (img, opciones) =>
+  init.convertRgba(img.width, img.height, img.data, opciones);
+
+for (const [nombre, opciones, quita] of [
+  ["por omisión", {}, true],
+  ["removeCheckerboard: true", { removeCheckerboard: true }, true],
+  ["removeCheckerboard: false", { removeCheckerboard: false }, false],
+]) {
+  const out = conPixelart(conDamero, opciones);
+  comprueba(
+    (out.checkerCell !== undefined) === quita,
+    `${nombre}: el damero ${quita ? "se va" : "se queda"} (celda ${out.checkerCell ?? "ninguna"})`,
+  );
+  out.free();
+}
+
+for (const [nombre, opciones, quita] of [
+  ["por omisión", {}, false],
+  ["removeBackground: false", { removeBackground: false }, false],
+  ["removeBackground: true", { removeBackground: true }, true],
+]) {
+  for (const [modo, convert] of [
+    ["pixelart", (o) => conPixelart(conFondoLiso, o)],
+    [
+      "illustration",
+      (o) =>
+        init.convertIllustration(
+          conFondoLiso.width,
+          conFondoLiso.height,
+          conFondoLiso.data,
+          o,
+        ),
+    ]
+  ]) {
+    const out = convert(opciones);
+    comprueba(
+      (out.background !== undefined) === quita,
+      `${modo}, ${nombre}: el fondo liso ${quita ? "se va" : "se queda"} (${out.background ?? "ninguno"})`,
+    );
+    out.free();
+  }
+}
+
 // El avance sólo lo cuenta el camino de ilustración, y es lo único de la API de JS que
 // no se puede comprobar mirando lo que devuelve: hay que ver si llaman.
 console.log("\nprogreso");
